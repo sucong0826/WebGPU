@@ -1,8 +1,11 @@
-# WebGPU Demo from Zoom
+# WebGPU Demo
 
 I am happy to dedicate myself to exploring the possibility of WebGPU in Zoom. Now we can run the demo code locally to test WebGPU and compare the performance between WebGPU/WebGL/WebGL2(in progress).
 
 The demo code is based on a WebCodec sample and expands its UI by adding WebGPU/WebGL/WebGL2 options on it. So, if you are going to run the demo, here are some options you need to know how to use.
+
+![demo architecture](https://github.com/sucong0826/WebGPU/assets/11333806/5cfdd025-740d-4f22-9ee6-f775a9cb641d)
+
 
 ## Prepare
 You will see this catalog after downloading the demo code.
@@ -25,7 +28,7 @@ You will see this catalog after downloading the demo code.
             -splash.jpg
 
 ### Files
-`main.js`: handle options and configurations on the web page
+`main.js`: handles options and configurations on the web page
 
 `WorkerMgr.js`: it creates and manages all the workers, binds some workers together
 
@@ -33,7 +36,7 @@ You will see this catalog after downloading the demo code.
 
 `DataWorker.js`: each stream(video) represents a DataWorker. it sometimes generates fake frames and dispatches them to the RendersWorker, sometimes, it dispatches the video frames directly to the RendersWorker
 
-`RendersWorker.js`: it creates all kinds of renderer and receives the video frames then sends them to renderers
+`RendersWorker.js`: it creates all kinds of renderers and receives the video frames then sends them to renderers
 
 `WebGPURender.js/WebGLRender.js/WebGL2Render.js`: renderer classes
 
@@ -57,10 +60,12 @@ Once the preparation is ready, we can start the test now.
 ## Start
 
 ### WebGPU/WebGL
+![necessary configs](https://github.com/sucong0826/WebGPU/assets/11333806/6013b282-0e0a-4779-9195-62ec4bff326c)
+
 If you want to test WebGPU or WebGL, you need to have the following configs on the page:
 
-- Resolution : default is QVGA(320x240), the max supported resolution here that you can choose is FullHD
-- Video Source: a list of connected camera, to select a camera that you prefer
+- Resolution: default is QVGA(320x240), the max supported resolution here that you can choose is FullHD
+- Video Source: a list of connected cameras, to select a camera that you prefer
 - Streams: you should give a number of the streams that you want to render, it's better to set 4/9/16/25/36/49... NxN streams
 - Render Type: **WebGPU/WebGL**/WebGL2
 - Render Source: VideoFrame/Picture/ColorChunk
@@ -69,15 +74,15 @@ If you want to test WebGPU or WebGL, you need to have the following configs on t
     - ColorChunk: generate a chunk of color and render it on the canvas
 - watermark option: If you want to test multiple textures like watermark, please enable it. Only WebGPU supports this option, WebGL/WebGL2 is in progress.
 
-Now, you have the necessary configs and next click the Start button on the web page.
+Now, you have the necessary configs and next, click the Start button on the web page.
 In the Render Area, you will see the result.
 
 ### WebGL2
-In Progress. The WebGL2 way is still in progress but you can do some simple tests the options above.
+In Progress. The WebGL2 way is still in progress but you can do some simple tests on the options above.
 Update asap.
 
 ## End/Reload
-Every time you want to setup some different options, please reload the page even though you can click the stop button. The Stop button can't go back to the main UI again, so reloading will work.
+Every time you want to set up some different options, please reload the page even though you can click the stop button. The Stop button can't go back to the main UI again, so reloading will work.
 
 ## Notice
 The result of WebGPU/WebGL/WebGL2 is a little different between Mac and Windows. We are going to publish a report of performance according to the result. 
