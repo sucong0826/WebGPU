@@ -1,6 +1,6 @@
 # WebGPU Demo
 
-I am happy to dedicate myself to exploring the possibility of WebGPU in Zoom. Now we can run the demo code locally to test WebGPU and compare the performance between WebGPU/WebGL/WebGL2(in progress).
+I am happy to dedicate myself to exploring the possibility of WebGPU. Now we can run the demo code locally to test WebGPU and compare the performance between WebGPU/WebGL/WebGL2(in progress).
 
 The demo code is based on a WebCodec sample and expands its UI by adding WebGPU/WebGL/WebGL2 options on it. So, if you are going to run the demo, here are some options you need to know how to use.
 
