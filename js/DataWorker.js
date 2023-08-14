@@ -36,7 +36,7 @@ self.onmessage = function (e) {
                     } else if (sourceType == "Picture") {
                         handlePictureFrame(e.data.cmd, workerId, viewport);
                     } else if (sourceType == "ColorChunk") {
-                        if (config.renderType == "WebGL2" || config.renderType == "WebGPU") {
+                        if (config.renderType == "WebGL2" || config.renderType == "WebGL" || config.renderType == "WebGPU") {
                             handleColorChunkBuffers(e.data.cmd, workerId, viewport);
                         } else {
                             handleColorChunkFrame(e.data.cmd, workerId, viewport);
