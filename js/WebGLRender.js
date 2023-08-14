@@ -76,17 +76,17 @@ class WebGLRender {
             this.#uTexLocation = this.#gl.getUniformLocation(this.#program, 'uTex');
             this.#vTexLocation = this.#gl.getUniformLocation(this.#program, 'vTex');
             this.#positionBuffer = this.#createBuffer(this.#gl);
-
-            this.#gl.useProgram(this.#program);
-            this.#gl.bindBuffer(this.#gl.ARRAY_BUFFER, this.#positionBuffer);
-            this.#gl.enableVertexAttribArray(this.#positionAttributeLocation);
-            this.#gl.vertexAttribPointer(this.#positionAttributeLocation, 2, this.#gl.FLOAT, false, 0, 0);
         } else {
             this.#program = this.#createShaderProgram(this.#gl, WebGLRender.VERTEX_SHADER, WebGLRender.FRAGMENT_SHADER);
             this.#positionAttributeLocation = this.#gl.getAttribLocation(this.#program, 'position');
             this.#videoTextureLocation = this.#gl.getUniformLocation(this.#program, 'videoTexture');
             this.#positionBuffer = this.#createBuffer(this.#gl);
         }
+
+        this.#gl.useProgram(this.#program);
+        this.#gl.bindBuffer(this.#gl.ARRAY_BUFFER, this.#positionBuffer);
+        this.#gl.enableVertexAttribArray(this.#positionAttributeLocation);
+        this.#gl.vertexAttribPointer(this.#positionAttributeLocation, 2, this.#gl.FLOAT, false, 0, 0);
     }
 
     cacheFrame(workerId, frame) {
