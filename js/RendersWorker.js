@@ -2,6 +2,7 @@ importScripts("WebGPURender.js", "WebGLRender.js", "WebGL2Render.js");
 
 let renderer = null;
 let drPort = null;
+let mrPort = null;
 
 // Rendering. Drawing is limited to once per animation frame.
 let pendingFrame = null;
@@ -18,6 +19,8 @@ self.onmessage = function(e) {
         drPort.onmessage = function(e) {
             handleSource(e.data.workerId, e.data.source);
         }
+    } else if (cmd == "bind-mr") {
+        mrPort = e.data.source;
     } else if (cmd == 'start') {
         if (!renderer) {
             let canvas = e.data.canvas;
@@ -34,10 +37,6 @@ self.onmessage = function(e) {
             } else if (renderType == "WebGL2") {
                 renderer = new WebGL2Render(canvas, viewport, sourceType);
                 renderer.start();
-            }
-            
-            if (hasPendingFrame) {
-                requestAnimate();
             }
         }
     }
@@ -60,13 +59,23 @@ function requestAnimate() {
 }
   
 function renderAnimationFrame() {
-    //console.log("[RenderWorker] renderAnimationFrame");
+    if (mrPort != null) {
+        if (startTime == null) {
+            startTime = performance.now();
+        } else {
+            const elapsed = (performance.now() - startTime) / 1000;
+            const fps = ++frameCount / elapsed;
+            let strFps = `${fps.toFixed(0)} fps`;
+            const msg = { fps: strFps };
+            mrPort.postMessage(msg);
+        }
+    }
+    
     renderer.draw();
     requestAnimationFrame(renderAnimationFrame);
 }
 
 function bindPort(port) {
-    console.log("new worker");
     port.onmessage = function(e) {
         // notify render to create buffer for the source
         // now we can simply regard the data as a videoframe
