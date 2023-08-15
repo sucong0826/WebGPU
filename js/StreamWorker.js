@@ -4,6 +4,9 @@
 let encoder, decoder, pl, started = false, stopped = false;
 let offscreen = null;
 let workerMgr = null;
+let startTime = null;
+let frameCount = 0;
+let msPort = null;
 let workersMap = new Map();
 
 let encqueue_aggregate = {
@@ -160,6 +163,8 @@ self.onmessage = function(e) {
     sdPort.onmessage = function(e) {
       // console.log("StreamWorker(onmessage)", e);
     }
+  } else if (cmd == "bind-ms") {
+    msPort = e.data.source;
   } else if (cmd == 'start') {
     try {
       if (e.data.config.sourceType == "VideoFrame") {
@@ -375,6 +380,18 @@ class pipeline {
 
     const transformer = new TransformStream({
       async transform(videoFrame, controller) {
+        if (msPort != null) {
+          if (startTime == null) {
+            startTime = performance.now();
+          } else {
+            const elapsed = (performance.now() - startTime) / 1000;
+            const fps = ++frameCount / elapsed;
+            let strFps = `${fps.toFixed(0)} fps`;
+            const msg = { fps: strFps };
+            msPort.postMessage(msg);
+          }
+        }
+
         dispatchSource(config, viewport, videoFrame);
         // controller.enqueue(newFrame);
       },

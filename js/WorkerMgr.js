@@ -5,7 +5,7 @@ class WorkerMgr {
     // and drawing, etc.
     #renderWorker = new Worker("js/RendersWorker.js");
     #streamWorker = new Worker("js/StreamWorker.js");
-    #mrChannel = null;
+    #msChannel = null;
 
     // a list of data workers
     #dataWorkers = new Map();
@@ -16,25 +16,25 @@ class WorkerMgr {
     }
 
     #init(count) {
-        this.#bindMainAndRenderWorkers();
+        this.#bindMainAndStreamWorkers();
         this.#createDataWorkers(count);
         let fpsTxt = document.getElementById('fps');
         fpsTxt.value = "0 fps";
     }
 
-    #bindMainAndRenderWorkers() {
-        if (this.#mrChannel == null) {
-            this.#mrChannel = new MessageChannel();
+    #bindMainAndStreamWorkers() {
+        if (this.#msChannel == null) {
+            this.#msChannel = new MessageChannel();
         }
         
-        this.#mrChannel.port1.onmessage = function(e) {
+        this.#msChannel.port1.onmessage = function(e) {
             // messages come from RendersWorker
             let fps = e.data.fps;
             let fpsTxt = document.getElementById('fps');
             fpsTxt.value = fps;
         }
 
-        this.#renderWorker.postMessage({ cmd: 'bind-mr', source: this.#mrChannel.port2 }, [this.#mrChannel.port2]);
+        this.#streamWorker.postMessage({ cmd: 'bind-ms', source: this.#msChannel.port2 }, [this.#msChannel.port2]);
     }
 
     #createDataWorkers(count) {

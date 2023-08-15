@@ -2,12 +2,9 @@ importScripts("WebGPURender.js", "WebGLRender.js", "WebGL2Render.js");
 
 let renderer = null;
 let drPort = null;
-let mrPort = null;
 
 // Rendering. Drawing is limited to once per animation frame.
 let pendingFrame = null;
-let startTime = null;
-let frameCount = 0;
 let isRendererCreated = false;
 let hasPendingFrame = false;
 
@@ -19,8 +16,6 @@ self.onmessage = function(e) {
         drPort.onmessage = function(e) {
             handleSource(e.data.workerId, e.data.source);
         }
-    } else if (cmd == "bind-mr") {
-        mrPort = e.data.source;
     } else if (cmd == 'start') {
         if (!renderer) {
             let canvas = e.data.canvas;
@@ -59,18 +54,6 @@ function requestAnimate() {
 }
   
 function renderAnimationFrame() {
-    if (mrPort != null) {
-        if (startTime == null) {
-            startTime = performance.now();
-        } else {
-            const elapsed = (performance.now() - startTime) / 1000;
-            const fps = ++frameCount / elapsed;
-            let strFps = `${fps.toFixed(0)} fps`;
-            const msg = { fps: strFps };
-            mrPort.postMessage(msg);
-        }
-    }
-    
     renderer.draw();
     requestAnimationFrame(renderAnimationFrame);
 }
