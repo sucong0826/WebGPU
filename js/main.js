@@ -5,7 +5,7 @@ import WorkerMgr from "./WorkerMgr.js";
 let preferredResolution;
 let mediaStream, bitrate = 100000;
 let stopped = false;
-let preferredCodec ="VP8";
+let preferredCodec = "VP8";
 let mode = "L1T3";
 let latencyPref = "realtime", bitPref = "variable";
 let hw = "no-preference";
@@ -36,14 +36,14 @@ wmCheckBox.checked = false;
 connectButton.disabled = false;
 stopButton.disabled = true;
 
-const qvgaConstraints   = {video: {width: 320,  height: 240}};
-const vgaConstraints    = {video: {width: 640,  height: 480}};
-const hdConstraints     = {video: {width: 1280, height: 720}};
+const qvgaConstraints = { video: { width: 320, height: 240 } };
+const vgaConstraints = { video: { width: 640, height: 480 } };
+const hdConstraints = { video: { width: 1280, height: 720 } };
 // const fullHdConstraints = {video: {width: {min: 1920}, height: {min: 1080}}};
-const fullHdConstraints = {video: {width: {min: 1280}, height: {min: 720}}};
-const tv4KConstraints   = {video: {width: {exact: 3840}, height: {exact: 2160}}};
-const cinema4KConstraints = {video: {width: {exact: 4096}, height: {exact: 2160}}};
-const eightKConstraints = {video: {width: {min: 7680}, height: {min: 4320}}};
+const fullHdConstraints = { video: { width: { min: 1280 }, height: { min: 720 } } };
+const tv4KConstraints = { video: { width: { exact: 3840 }, height: { exact: 2160 } } };
+const cinema4KConstraints = { video: { width: { exact: 4096 }, height: { exact: 2160 } } };
+const eightKConstraints = { video: { width: { min: 7680 }, height: { min: 4320 } } };
 
 let constraints = qvgaConstraints;
 
@@ -68,7 +68,7 @@ function gotDevices(deviceInfos) {
     if (deviceInfo.kind === 'videoinput') {
       option.text = deviceInfo.label || `camera ${videoSelect.length + 1}`;
       videoSelect.appendChild(option);
-    } 
+    }
   }
   selectors.forEach((select, selectorIndex) => {
     if (Array.prototype.slice.call(select.childNodes).some(n => n.value === values[selectorIndex])) {
@@ -80,57 +80,57 @@ function gotDevices(deviceInfos) {
 async function getResValue(radioValue) {
   preferredResolution = radioValue;
   addToEventLog('Resolution selected: ' + preferredResolution);
-  switch(preferredResolution) {
-     case "qvga":
-       constraints = qvgaConstraints;
-       break;
-     case "vga":
-       constraints = vgaConstraints;
-       break;
-     case "hd":
-       constraints = hdConstraints;
-       break;
-     case "full-hd":
-       constraints = fullHdConstraints;
-       break;
-     case "tv4K":
-       constraints = tv4KConstraints;
-       break;
-     case "cinema4K":
-       constraints = cinema4KConstraints;
-       break;
-     case "eightK":
-       constraints = eightKConstraints;
-       break;
-     default:
-       constraints = qvgaConstraints;
-       break;
+  switch (preferredResolution) {
+    case "qvga":
+      constraints = qvgaConstraints;
+      break;
+    case "vga":
+      constraints = vgaConstraints;
+      break;
+    case "hd":
+      constraints = hdConstraints;
+      break;
+    case "full-hd":
+      constraints = fullHdConstraints;
+      break;
+    case "tv4K":
+      constraints = tv4KConstraints;
+      break;
+    case "cinema4K":
+      constraints = cinema4KConstraints;
+      break;
+    case "eightK":
+      constraints = eightKConstraints;
+      break;
+    default:
+      constraints = qvgaConstraints;
+      break;
   }
   // Get a MediaStream from the webcam, and reset the resolution.
   try {
     //stop the tracks
-    if (mediaStream){
+    if (mediaStream) {
       mediaStream.getTracks().forEach(track => {
         track.stop();
       });
     }
     gotDevices(await navigator.mediaDevices.enumerateDevices());
-    constraints.deviceId = videoSource ? {exact: videoSource} : undefined;
+    constraints.deviceId = videoSource ? { exact: videoSource } : undefined;
     mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
     document.getElementById('inputVideo').srcObject = mediaStream;
-  } catch(e){
+  } catch (e) {
     addToEventLog(`EnumerateDevices or gUM error: ${e.message}`);
   }
 }
 
 export function getPrefValue(radio) {
-   latencyPref = radio.value;
-   addToEventLog('Latency preference selected: ' + latencyPref);
+  latencyPref = radio.value;
+  addToEventLog('Latency preference selected: ' + latencyPref);
 }
 
 export function getBitPrefValue(radio) {
-   bitPref = radio.value;
-   addToEventLog('Bitrate mode selected: ' + bitPref);
+  bitPref = radio.value;
+  addToEventLog('Bitrate mode selected: ' + bitPref);
 }
 
 export function getCodecValue(radio) {
@@ -170,25 +170,25 @@ function stop() {
   try {
     inputStream.cancel();
     addToEventLog('inputStream cancelled');
-  } catch(e) {
+  } catch (e) {
     addToEventLog(`Could not cancel inputStream: ${e.message}`);
   }
   try {
     outputStream.abort();
     addToEventLog('outputStream aborted');
-  } catch(e) {
+  } catch (e) {
     addToEventLog(`Could not abort outputStream: ${e.message}`);
   }
 }
 
-document.addEventListener('DOMContentLoaded', async function(event) {
+document.addEventListener('DOMContentLoaded', async function (event) {
   if (stopped) return;
   addToEventLog('DOM Content Loaded');
 
   if (typeof MediaStreamTrackProcessor === 'undefined' ||
-      typeof MediaStreamTrackGenerator === 'undefined') {
+    typeof MediaStreamTrackGenerator === 'undefined') {
     addToEventLog('Your browser does not support the experimental Mediacapture-transform API.\n' +
-        'Please launch with the --enable-blink-features=WebCodecs,MediaStreamInsertableStreams flag','fatal');
+      'Please launch with the --enable-blink-features=WebCodecs,MediaStreamInsertableStreams flag', 'fatal');
     return;
   }
   try {
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async function(event) {
   } catch (e) {
     addToEventLog('Error in Device enumeration');
   }
-  constraints.deviceId = videoSource ? {exact: videoSource} : undefined;
+  constraints.deviceId = videoSource ? { exact: videoSource } : undefined;
   // Get a MediaStream from the webcam.
   mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
   // Connect the webcam stream to the video element.
@@ -226,6 +226,21 @@ document.addEventListener('DOMContentLoaded', async function(event) {
     });
   });
 
+  const stBtns = document.querySelectorAll('input[name="SourceType"]');
+  stBtns.forEach((radio) => {
+    radio.addEventListener('change', () => {
+      // Get the value of the selected radio button
+      const selectedValue = document.querySelector('input[name="SourceType"]:checked').value;
+      if (selectedValue != "VideoFrame") {
+        document.getElementById('inputVideo').style.display = "none";
+      } else {
+        document.getElementById('inputVideo').style.display = "block";
+      }
+      // Log the selected value
+      console.log(selectedValue);
+    });
+  });
+
   connectButton.onclick = () => {
     connectButton.disabled = true;
     stopButton.disabled = false;
@@ -244,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async function(event) {
 
   async function startMedia() {
     if (stopped) return;
-    addToEventLog('startMedia called'); 
+    addToEventLog('startMedia called');
     try {
       // Collect the bitrate
       const rate = document.getElementById('rate').value;
@@ -264,103 +279,131 @@ document.addEventListener('DOMContentLoaded', async function(event) {
       const stCheckedRadio = sourceTypeButtons.querySelector('input[type="radio"]:checked');
       getSourceTypeValue(stCheckedRadio);
 
-      // Create a MediaStreamTrackProcessor, which exposes frames from the track
-      // as a ReadableStream of VideoFrames, using non-standard Chrome API.
-      let [track] = mediaStream.getVideoTracks();
-      let ts = track.getSettings();
-      const processor = new MediaStreamTrackProcessor(track);
-      inputStream = processor.readable;
+      if (sourceType == "VideoFrame") {
+        // Create a MediaStreamTrackProcessor, which exposes frames from the track
+        // as a ReadableStream of VideoFrames, using non-standard Chrome API.
+        let [track] = mediaStream.getVideoTracks();
+        let ts = track.getSettings();
+        const processor = new MediaStreamTrackProcessor(track);
+        inputStream = processor.readable;
 
-      // Create a MediaStreamTrackGenerator, which exposes a track from a
-      // WritableStream of VideoFrames, using non-standard Chrome API.
-      const generator = new MediaStreamTrackGenerator({kind: 'video'});
-      outputStream = generator.writable;
-      document.getElementById('outputVideo').srcObject = new MediaStream([generator]);
+        // Create a MediaStreamTrackGenerator, which exposes a track from a
+        // WritableStream of VideoFrames, using non-standard Chrome API.
+        const generator = new MediaStreamTrackGenerator({ kind: 'video' });
+        outputStream = generator.writable;
+        document.getElementById('outputVideo').srcObject = new MediaStream([generator]);
 
-      //Create video Encoder configuration
-      const vConfig = {
-         keyInterval: keygap,
-         resolutionScale: 1,
-         framerateScale: 1.0,
-      };
-   
-      let ssrcArr = new Uint32Array(1);
-      window.crypto.getRandomValues(ssrcArr);
-      const ssrc = ssrcArr[0];
-      const isMultipleTextures = wmCheckBox.checked;
+        //Create video Encoder configuration
+        const vConfig = {
+          keyInterval: keygap,
+          resolutionScale: 1,
+          framerateScale: 1.0,
+        };
 
-      const config = {
-        alpha: "discard",
-        latencyMode: latencyPref,
-        bitrateMode: bitPref,
-        codec: preferredCodec,
-        width: ts.width/vConfig.resolutionScale,
-        height: ts.height/vConfig.resolutionScale,
-        hardwareAcceleration: hw,
-        bitrate: rate, 
-        framerate: ts.frameRate/vConfig.framerateScale,
-        keyInterval: vConfig.keyInterval,
-        ssrc:  ssrc,
-        isMultipleTextures: isMultipleTextures,
-        renderType: renderType,
-        sourceType: sourceType
-      };
+        let ssrcArr = new Uint32Array(1);
+        window.crypto.getRandomValues(ssrcArr);
+        const ssrc = ssrcArr[0];
+        const isMultipleTextures = wmCheckBox.checked;
 
-      // const config = {
-      //   codec: 'av01.1.04M.08',
-      //   width: 1920, // 设置视频宽度
-      //   height: 1080, // 设置视频高度
-      //   framerate: 30, // 设置帧率（每秒帧数）
-      //   bitrate: 5000000, // 设置视频比特率（bps，此处为5 Mbps）
-      // };
+        const config = {
+          alpha: "discard",
+          latencyMode: latencyPref,
+          bitrateMode: bitPref,
+          codec: preferredCodec,
+          width: ts.width / vConfig.resolutionScale,
+          height: ts.height / vConfig.resolutionScale,
+          hardwareAcceleration: hw,
+          bitrate: rate,
+          framerate: ts.frameRate / vConfig.framerateScale,
+          keyInterval: vConfig.keyInterval,
+          ssrc: ssrc,
+          isMultipleTextures: isMultipleTextures,
+          renderType: renderType,
+          sourceType: sourceType
+        };
 
-      if (mode != "L1T1") {
-        config.scalabilityMode = mode;
+        // const config = {
+        //   codec: 'av01.1.04M.08',
+        //   width: 1920, // 设置视频宽度
+        //   height: 1080, // 设置视频高度
+        //   framerate: 30, // 设置帧率（每秒帧数）
+        //   bitrate: 5000000, // 设置视频比特率（bps，此处为5 Mbps）
+        // };
+
+        if (mode != "L1T1") {
+          config.scalabilityMode = mode;
+        }
+
+        switch (preferredCodec) {
+          case "H264":
+            config.codec = "avc1.42002A";  // baseline profile, level 4.2
+            config.avc = { format: "annexb" };
+            config.pt = 1;
+            break;
+          case "H265":
+            config.codec = "hvc1.1.6.L123.00"; // Main profile, level 4.1, main Tier
+            config.hevc = { format: "annexb" };
+            config.pt = 2;
+            break;
+          case "VP8":
+            config.codec = "vp8";
+            config.pt = 3;
+            break;
+          case "VP9":
+            config.codec = "vp09.00.10.08"; //VP9, Profile 0, level 1, bit depth 8
+            config.pt = 4;
+            break;
+          case "AV1":
+            config.codec = "av01.0.08M.10.0.110.09" // AV1 Main Profile, level 4.0, Main tier, 10-bit content, non-monochrome, with 4:2:0 chroma subsampling
+            config.pt = 5;
+            break;
+        }
+
+        // query input of streamsCounter for evaluating layout
+        streamsCounter = Number(streamsCounterInput.value);
+        let viewport = {
+          streamsCounter: streamsCounter,
+          constraints: constraints,
+        };
+
+        workerMgr = new WorkerMgr(streamsCounter);
+        const startInfo = {
+          cmd: "start",
+          config: config,
+          offscreen: offscreen,
+          viewport: viewport,
+          streams: { input: inputStream, output: outputStream },
+        };
+        workerMgr.workersStart(startInfo);
+      } else {
+        // query input of streamsCounter for evaluating layout
+        streamsCounter = Number(streamsCounterInput.value);
+        let viewport = {
+          streamsCounter: streamsCounter,
+          constraints: constraints,
+        };
+
+        const isMultipleTextures = wmCheckBox.checked;
+
+        const config = {
+          hardwareAcceleration: hw,
+          isMultipleTextures: isMultipleTextures,
+          renderType: renderType,
+          sourceType: sourceType
+        };
+
+        workerMgr = new WorkerMgr(streamsCounter);
+        const startInfo = {
+          cmd: "start",
+          config: config,
+          offscreen: offscreen,
+          viewport: viewport,
+        };
+        workerMgr.workersStart(startInfo);
       }
 
-      switch(preferredCodec) {
-        case "H264":
-          config.codec = "avc1.42002A";  // baseline profile, level 4.2
-          config.avc = { format: "annexb" };
-          config.pt = 1;
-          break;
-        case "H265":
-          config.codec = "hvc1.1.6.L123.00"; // Main profile, level 4.1, main Tier
-          config.hevc = { format: "annexb" };
-          config.pt = 2;
-          break; 
-        case "VP8":
-          config.codec = "vp8";
-          config.pt = 3;
-          break;
-        case "VP9":
-          config.codec = "vp09.00.10.08"; //VP9, Profile 0, level 1, bit depth 8
-          config.pt = 4;
-          break;
-        case "AV1":
-          config.codec = "av01.0.08M.10.0.110.09" // AV1 Main Profile, level 4.0, Main tier, 10-bit content, non-monochrome, with 4:2:0 chroma subsampling
-          config.pt = 5;
-          break;
-      }
-
-      // query input of streamsCounter for evaluating layout
-      streamsCounter = Number(streamsCounterInput.value);
-      let viewport = {
-        streamsCounter: streamsCounter,
-        constraints: constraints,
-      };
-
-      workerMgr = new WorkerMgr(streamsCounter);
-      const startInfo = {
-        cmd: "start",
-        config: config,
-        offscreen: offscreen,
-        viewport: viewport,
-        streams: { input: inputStream, output: outputStream },
-      };
-      workerMgr.workersStart(startInfo);
-    } catch(e) {
-       addToEventLog(e.name + ": " + e.message, 'fatal');
+    } catch (e) {
+      addToEventLog(e.name + ": " + e.message, 'fatal');
     }
   }
 }, false);

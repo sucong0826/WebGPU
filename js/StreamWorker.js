@@ -162,9 +162,16 @@ self.onmessage = function(e) {
     }
   } else if (cmd == 'start') {
     try {
-      pl = new pipeline(e.data);
-      // pl.start();
-      pl.simpleStart(pl.config, pl.viewport);
+      if (e.data.config.sourceType == "VideoFrame") {
+        pl = new pipeline(e.data);
+        pl.simpleStart(pl.config, pl.viewport);
+      } else {
+        // emulate 30fps
+        setInterval(() => {
+          dispatchSource(e.data.config, e.data.viewport);
+        }, 33.3);
+      }
+      
     } catch (e) {
       self.postMessage({ severity: 'fatal', text: `Pipeline creation failed: ${e.message}` })
       return;

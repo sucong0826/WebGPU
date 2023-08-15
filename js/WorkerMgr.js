@@ -54,21 +54,31 @@ class WorkerMgr {
     }
 
     workersStart(startInfo) {
-        let is = startInfo.streams.input;
-        let os = startInfo.streams.output;
         let offscreenCanvas = startInfo.offscreen;
-        this.#streamWorker.postMessage(
-            { 
-                cmd: 'start',
-                config: startInfo.config,
-                viewport: startInfo.viewport,
-                streams: {
-                    input: is,
-                    output: os,
-                },
-            }, 
-            [is, os],
-        );
+        if (startInfo.config.sourceType == "VideoFrame") {
+            let is = startInfo.streams.input;
+            let os = startInfo.streams.output;
+            this.#streamWorker.postMessage(
+                { 
+                    cmd: 'start',
+                    config: startInfo.config,
+                    viewport: startInfo.viewport,
+                    streams: {
+                        input: is,
+                        output: os,
+                    },
+                }, 
+                [is, os],
+            );
+        } else {
+            this.#streamWorker.postMessage(
+                { 
+                    cmd: 'start',
+                    config: startInfo.config,
+                    viewport: startInfo.viewport,
+                }, 
+            );
+        }
 
         this.#renderWorker.postMessage(
             {

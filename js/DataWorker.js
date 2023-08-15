@@ -7,6 +7,7 @@ let commandEncoder = null;
 // let renderer = null;
 let hasPendingFrame = false;
 let bitmap = null;
+let blob = null;
 let yuvBuffer = null;
 let yData = null, uData = null, vData = null;
 
@@ -34,7 +35,11 @@ self.onmessage = function (e) {
                     if (sourceType == "VideoFrame") {
                         drPort.postMessage({ cmd: e.data.cmd, workerId: workerId, source: e.data.source }, [e.data.source]);
                     } else if (sourceType == "Picture") {
-                        handlePictureFrame(e.data.cmd, workerId, viewport);
+                        if (config.renderType == "WebGL" || config.renderType == "WebGPU") {
+                            handlePictureFrame(e.data.cmd, workerId, viewport);
+                        } else if (config.renderType == "WebGL2") {
+                            handlePicBuffer(e.data.cmd, workerId);
+                        }
                     } else if (sourceType == "ColorChunk") {
                         if (config.renderType == "WebGL2" || config.renderType == "WebGL" || config.renderType == "WebGPU") {
                             handleColorChunkBuffers(e.data.cmd, workerId, viewport);
@@ -59,7 +64,11 @@ self.onmessage = function (e) {
 async function prepareBitmap() {
     const resp = await fetch('../splash.jpg');
     const blob = await resp.blob();
-    let imageBitmap = await createImageBitmap(blob);
+    let imageBitmap = await createImageBitmap(blob, {
+        resizeWidth: 320,
+        resizeHeight: 240,
+    });
+    this.blob = blob;
     this.bitmap = imageBitmap;
 }
 
@@ -217,7 +226,7 @@ function handleColorChunkFrame(cmd, workerId, viewport) {
     drPort.postMessage({ cmd: cmd, workerId: workerId, source: vf }, [vf]);
 }
 
-async function handlePictureFrame(cmd, workerId, viewport) {
+function handlePictureFrame(cmd, workerId, viewport) {
     if (this.bitmap) {
         let w = viewport.constraints.video.width;
         let h = viewport.constraints.video.height;
@@ -236,3 +245,10 @@ async function handlePictureFrame(cmd, workerId, viewport) {
     }
 }
 
+
+async function handlePicBuffer(cmd, workerId) {
+    if (this.blob) {
+        const buffer = await this.blob.arrayBuffer();
+        drPort.postMessage({ cmd: cmd, workerId: workerId, source: buffer }, [buffer]);
+    }
+}
