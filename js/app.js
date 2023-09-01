@@ -3976,10 +3976,10 @@ var shouldRunNow = true;
 if (Module['noInitialRun']) shouldRunNow = false;
 
 run();
+
 const exports = {};
 let offscreen;
 exports.injectOffscreenCanvas = function(offscreenCanvas) {
   offscreen = offscreenCanvas;
 }
-
 // end include: postamble.js
