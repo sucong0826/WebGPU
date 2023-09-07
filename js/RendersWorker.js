@@ -1,12 +1,28 @@
-importScripts("WebGPURender.js", "WebGLRender.js", "WebGL2Render.js");
+importScripts("WebGPURender.js", "WebGLRender.js", "WebGL2Render.js", "WebGPUDawnRenderProxy.js", "app.js");
 
 let renderer = null;
 let drPort = null;
+let isRuntimeInitialized = false;
+let globalCanvas = null;
+let globalViewport = null;
+let globalIsMultipleTextures = false;
+let globalSourceType = "";
 
 // Rendering. Drawing is limited to once per animation frame.
 let pendingFrame = null;
 let isRendererCreated = false;
 let hasPendingFrame = false;
+let result = Module.onRuntimeInitialized = () => {
+    console.log('onRuntimeInitialized');
+    isRuntimeInitialized = true;
+    if (renderer == null) {
+        if (globalCanvas != null) {
+            exports.injectOffscreenCanvas(globalCanvas);
+            renderer = new WebGPUDawnRenderProxy(globalCanvas, globalViewport, globalSourceType);
+            renderer.start(globalIsMultipleTextures);
+        }
+    }
+}
 
 self.onmessage = function(e) {
     //console.log("[WebGPURenderWorker] Receive msg from WorkerMgr.", e);
@@ -14,14 +30,27 @@ self.onmessage = function(e) {
     if (cmd == 'bind-dr') {
         drPort = e.data.source;
         drPort.onmessage = function(e) {
-            handleSource(e.data.workerId, e.data.source);
+            if (isRuntimeInitialized) {
+                handleSource(e.data.workerId, e.data.source);
+            } else {
+                console.error("runtime is not initialized yet, please try again later.");
+                e.data.source.close();
+            }
         }
     } else if (cmd == 'start') {
         if (!renderer) {
             let canvas = e.data.canvas;
+            globalCanvas = canvas;
+
             let viewport = e.data.viewport;
+            globalViewport = viewport;
+
             let isMultipleTextures = e.data.isMultipleTextures;
+            globalIsMultipleTextures = isMultipleTextures;
+
             let sourceType = e.data.sourceType;
+            globalSourceType = sourceType;
+
             let renderType = e.data.renderType;
             if (renderType == "WebGPU") {
                 renderer = new WebGPURenderer(canvas, viewport, sourceType);
@@ -32,6 +61,13 @@ self.onmessage = function(e) {
             } else if (renderType == "WebGL2") {
                 renderer = new WebGL2Render(canvas, viewport, sourceType);
                 renderer.start();
+            } if (renderType == "WebGPU-Dawn") {
+                if (isRuntimeInitialized) {
+                    renderer = new WebGPUDawnRenderProxy(canvas, viewport, sourceType);
+                    renderer.start(isMultipleTextures);
+                } else {
+                    console.error("runtime is not initialized yet, please try again later.");
+                }
             }
         }
     }
