@@ -44,20 +44,22 @@ class WebGL2Render {
 
         void main() {
             // Sample Y, U, and V textures
-            vec3 yuv;
+            vec4 yuv;
             yuv.x = texture(yTex, texCoord).r;
-            yuv.y = texture(uTex, texCoord).r - 0.5;
-            yuv.z = texture(vTex, texCoord).r - 0.5;
+            yuv.y = texture(uTex, texCoord).r;
+            yuv.z = texture(vTex, texCoord).r;
+            yuv.w = 1.0;
 
             // Perform YUV to RGB color space conversion
-            mat3 yuvToRgb = mat3(1.0, 1.0, 1.0,
-                                0.0, -0.39465, 2.03211,
-                                1.13983, -0.58060, 0.0);
+            mat4 yuvToRgb = mat4(1.1643835616, 0, 1.7927410714, -0.9729450750,
+                1.1643835616, -0.2132486143, -0.5329093286, 0.3014826655,
+                1.1643835616, 2.1124017857, 0, -1.1334022179,
+                0, 0, 0, 1);
 
-            vec3 rgb = yuvToRgb * yuv;
+            vec4 rgba = yuvToRgb * yuv;
 
             // Combine RGB values into final color
-            fragColor = vec4(rgb, 1.0);
+            fragColor = rgba;
         }
     `;
 
@@ -71,7 +73,7 @@ class WebGL2Render {
 
     start() {
         if (this.#sourceType == "ColorChunk") {
-            this.#createShaderProgram(this.#gl, WebGL2Render.VERTEX_SHADER, WebGL2Render.FRAGMENT_SHADER);
+            this.#createShaderProgram(this.#gl, WebGL2Render.VERTEX_SHADER, WebGL2Render.FRAGMENT_YUV_SHADER);
             this.#positionAttributeLocation = this.#gl.getAttribLocation(this.#program, 'position');
             this.#yTexLocation = this.#gl.getUniformLocation(this.#program, 'yTexLocation');
             this.#uTexLocation = this.#gl.getUniformLocation(this.#program, 'uTexLocation');
@@ -82,7 +84,7 @@ class WebGL2Render {
             this.#gl.enableVertexAttribArray(this.#positionAttributeLocation);
             this.#gl.vertexAttribPointer(this.#positionAttributeLocation, 2, this.#gl.FLOAT, false, 0, 0);
         } else {
-            this.#createShaderProgram(this.#gl, WebGL2Render.VERTEX_SHADER, WebGL2Render.FRAGMENT_YUV_SHADER);
+            this.#createShaderProgram(this.#gl, WebGL2Render.VERTEX_SHADER, WebGL2Render.FRAGMENT_SHADER);
             this.#positionAttributeLocation = this.#gl.getAttribLocation(this.#program, 'position');
             this.#videoTextureLocation = this.#gl.getUniformLocation(this.#program, 'videoTexture');
             this.#positionBuffer = this.#createBuffer(this.#gl);
@@ -250,25 +252,26 @@ class WebGL2Render {
         return buffer;
     }
 
-    #createTexture(gl, buffer) {
+    #createTexture(gl, videoFrame) {
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
             gl.TEXTURE_2D,
             0,
-            gl.LUMINANCE,
+            gl.RGBA,
             this.#viewport.constraints.video.width,
             this.#viewport.constraints.video.height,
             0,
-            gl.LUMINANCE,
+            gl.RGBA,
             gl.UNSIGNED_BYTE,
-            new Uint8Array(buffer)
+            videoFrame
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.bindTexture(gl.TEXTURE_2D, null);
+        videoFrame.close();
 
         return texture;
     }
@@ -301,8 +304,8 @@ class WebGL2Render {
             gl.TEXTURE_2D,
             0,
             gl.LUMINANCE_ALPHA,
-            this.#viewport.constraints.video.width / 4,
-            this.#viewport.constraints.video.height / 4,
+            this.#viewport.constraints.video.width / 2,
+            this.#viewport.constraints.video.height / 2,
             0,
             gl.LUMINANCE_ALPHA,
             gl.UNSIGNED_BYTE,
@@ -321,8 +324,8 @@ class WebGL2Render {
             gl.TEXTURE_2D,
             0,
             gl.LUMINANCE_ALPHA,
-            this.#viewport.constraints.video.width / 4,
-            this.#viewport.constraints.video.height / 4,
+            this.#viewport.constraints.video.width / 2,
+            this.#viewport.constraints.video.height / 2,
             0,
             gl.LUMINANCE_ALPHA,
             gl.UNSIGNED_BYTE,
@@ -338,20 +341,21 @@ class WebGL2Render {
         return texGroup;
     }
 
-    #updateTexture(gl, texture, buffer) {
+    #updateTexture(gl, texture, videoFrame) {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
             gl.TEXTURE_2D,
             0,
-            gl.LUMINANCE,
+            gl.RGBA,
             this.#viewport.constraints.video.width,
             this.#viewport.constraints.video.height,
             0,
-            gl.LUMINANCE,
+            gl.RGBA,
             gl.UNSIGNED_BYTE,
-            new Uint8Array(buffer)
+            videoFrame
         );
         gl.bindTexture(gl.TEXTURE_2D, null);
+        videoFrame.close();
     }
 
     #updateTextureGroup(gl, textureGroup, yuvBuffers) {
@@ -374,8 +378,8 @@ class WebGL2Render {
             gl.TEXTURE_2D,
             0,
             gl.LUMINANCE_ALPHA,
-            this.#viewport.constraints.video.width / 4,
-            this.#viewport.constraints.video.height / 4,
+            this.#viewport.constraints.video.width / 2,
+            this.#viewport.constraints.video.height / 2,
             0,
             gl.LUMINANCE_ALPHA,
             gl.UNSIGNED_BYTE,
@@ -388,8 +392,8 @@ class WebGL2Render {
             gl.TEXTURE_2D,
             0,
             gl.LUMINANCE_ALPHA,
-            this.#viewport.constraints.video.width / 4,
-            this.#viewport.constraints.video.height / 4,
+            this.#viewport.constraints.video.width / 2,
+            this.#viewport.constraints.video.height / 2,
             0,
             gl.LUMINANCE_ALPHA,
             gl.UNSIGNED_BYTE,

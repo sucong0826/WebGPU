@@ -34,7 +34,9 @@ self.onmessage = function(e) {
                 handleSource(e.data.workerId, e.data.source);
             } else {
                 console.error("runtime is not initialized yet, please try again later.");
-                e.data.source.close();
+                if (e.data.source instanceof VideoFrame) {
+                    e.data.source.close();
+                }
             }
         }
     } else if (cmd == 'start') {

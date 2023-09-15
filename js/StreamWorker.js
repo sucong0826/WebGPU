@@ -88,14 +88,16 @@ function dispatchFrame(frame, config) {
   let renderType = config.renderType;
   if (renderType == "WebGL2") {
     handleWebGL2VideoFrame(size, config, frame);
-  } else {
+  } else if (renderType == "WebGL" || renderType == "WebGPU") {
     for (let i = 0; i < size; ++i) {
       let dataWorker = workersMap.get(i);
       let vf = new VideoFrame(frame);
       dataWorker.postMessage({ cmd: 'framing', workerId: i, config: config, source: vf }, [vf]);
     }
     frame.close();
-  } 
+  } else {
+    frame.close();
+  }
 }
 
 function dispatchOthers(config, viewport) {
@@ -118,15 +120,55 @@ function dispatchSource(config, viewport, frame) {
   }
 }
 
-async function handleWebGL2VideoFrame(size, config, frame) {
-  let webgl2Buffer = new Uint8Array(frame.allocationSize());
-  await frame.copyTo(webgl2Buffer);
-  frame.close();
+function dispatchFrameYUVBuffers(videoFrame, config) {
+  let size = workersMap.size;
+  let width = config.width;
+  let height = config.height;
 
   for (let i = 0; i < size; ++i) {
     let dataWorker = workersMap.get(i);
-    dataWorker.postMessage({ cmd: 'framing', workerId: i, config: config, source: webgl2Buffer.buffer });
+    readYUVPlanesDataToBuffers(videoFrame, width, height).then(buffers => {
+      dataWorker.postMessage(
+        { cmd: 'framing', workerId: i, config: config, source: { yPlane: buffers.yPlane, uPlane: buffers.uPlane, vPlane: buffers.vPlane } },
+        [ buffers.yPlane.buffer, buffers.uPlane.buffer, buffers.vPlane.buffer ]
+      );
+    });
   }
+
+  videoFrame.close();
+}
+
+function readYUVPlanesDataToBuffers(videoFrame, width, height) {
+  return new Promise((resolve, reject) => {
+      let frameBuffer = new Uint8Array(videoFrame.allocationSize());
+      videoFrame.copyTo(frameBuffer).then(() => {
+          const ySize = width * height;
+          const yOffset = 0;
+          const uOffset = ySize;
+          const uSize = width / 2 * height / 2;
+          const vOffset = ySize + uSize;
+
+          // let yPlane = frameBuffer.subarray(yOffset, ySize);
+          // let uPlane = frameBuffer.subarray(uOffset, ySize + uSize);
+          // let vPlane = frameBuffer.subarray(vOffset, frameBuffer.byteLength);
+
+          let yPlane = new Uint8Array(frameBuffer, yOffset, ySize);
+          let uPlane = new Uint8Array(frameBuffer, uOffset, uSize);
+          let vPlane = new Uint8Array(frameBuffer, vOffset, frameBuffer.byteLength);
+
+          resolve({ yPlane: yPlane, uPlane: uPlane, vPlane: vPlane });
+      });
+  });
+}
+
+async function handleWebGL2VideoFrame(size, config, frame) {
+  for (let i = 0; i < size; ++i) {
+    let dataWorker = workersMap.get(i);
+    let vf = new VideoFrame(frame);
+    dataWorker.postMessage({ cmd: 'framing', workerId: i, config: config, source: vf }, [vf]);
+  }
+
+  frame.close();
 }
 
 function transformFrame(frame) {
@@ -170,6 +212,7 @@ self.onmessage = function(e) {
       if (e.data.config.sourceType == "VideoFrame") {
         pl = new pipeline(e.data);
         pl.simpleStart(pl.config, pl.viewport);
+        // pl.start(pl.config, pl.viewport);
       } else {
         // emulate 30fps
         setInterval(() => {
@@ -226,7 +269,8 @@ class pipeline {
       start(controller) {
         this.decoder = decoder = new VideoDecoder({
           output: frame => {
-            dispatchFrame(frame);
+            dispatchSource(pl.config, pl.viewport, frame);
+            // dispatchFrame(frame);
             // controller.enqueue(frame);
           },
           error: (e) => {
