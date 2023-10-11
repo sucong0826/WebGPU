@@ -19,6 +19,9 @@ class WebGPURenderer {
   #wmPipeline = null;
   #colorChunkPipeline = null;
   #sampler = null;
+  #ySampler = null;
+  #uSampler = null;
+  #vSampler = null;
   #viewport = null;
 
   // Generates two triangles covering the whole canvas.
@@ -64,6 +67,59 @@ class WebGPURenderer {
     fn frag_main(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
       var color0: vec4<f32> = textureSampleBaseClampToEdge(vfTexture, mySampler, uv);
       return color0;
+    }
+  `;
+
+  static FRAG_SHADER_YUV = /* wgsl */ `
+    @group(0) @binding(0) var ySampler: sampler;
+    @group(0) @binding(1) var uSampler: sampler;
+    @group(0) @binding(2) var vSampler: sampler;
+    @group(0) @binding(3) var yTexture: texture_2d<f32>;
+    @group(0) @binding(4) var uTexture: texture_2d<f32>;
+    @group(0) @binding(5) var vTexture: texture_2d<f32>;
+
+    @fragment
+    fn frag_main(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
+      //var rgba: vec4<f32>;
+      // rgba.r = textureSampleBaseClampToEdge(yTexture, mySampler, uv).r;
+      // rgba.g = textureSampleBaseClampToEdge(uTexture, mySampler, uv).r;
+      // rgba.b = textureSampleBaseClampToEdge(vTexture, mySampler, uv).r;
+      // rgba.a = 1.0;
+      let y = textureSampleBaseClampToEdge(yTexture, ySampler, uv).r;
+      let u = textureSampleBaseClampToEdge(uTexture, uSampler, uv).r;
+      let v = textureSampleBaseClampToEdge(vTexture, vSampler, uv).r;
+      
+      let yuv_2_rgb_matrix = mat4x4(
+        1.1643835616, 0, 1.7927410714, -0.9729450750,
+        1.1643835616, -0.2132486143, -0.5329093286, 0.3014826655,
+        1.1643835616, 2.1124017857, 0, -1.1334022179,
+        0, 0, 0, 1);
+
+      return vec4<f32>(y, u, v, 1.0) * yuv_2_rgb_matrix;
+      // let yuv2rgba = mat4x4(
+      //   1.1643828125, 0, 1.59602734375, -.87078515625,
+      //   1.1643828125, -.39176171875, -.81296875, .52959375,
+      //   1.1643828125, 2.017234375, 0, -1.081390625,
+      //   0, 0, 0, 1
+      // );
+
+      // return yuv2rgba * vec4<f32>(y, u, v, 1.0);
+      // var yuvToRgb = mat3x3(1.0, 1.0, 1.0, 0.0, -0.39465, 2.03211, 1.13983, -0.58060, 0.0);
+      // rgb.r = y + 1.13983 * v;
+      // rgb.g = y - 0.39465 * u - 0.58060 * v;
+      // rgb.b = y + 2.03211 * u;
+      // // var rgb: vec3<f32> = yuvToRgb * rgba.rgb;
+      // var yuv2rgb = mat3x3(
+      //   1, 0, 1.5784,
+      //   1, -0.8173, -0.4681,
+      //   1, 1.8556, 0
+      // );
+      // let rgb = yuv2rgb * vec3<f32>(y, u, v);
+      // return vec4<f32>(rgb, 1.0);
+
+      // var yuvToRgb = mat3x3(1.0, 1.0, 1.0, 0.0, -0.39465, 2.03211, 1.13983, -0.58060, 0.0);
+      // var rgb: vec3<f32> = yuvToRgb * vec3<f32>(y, u, v);
+      // return vec4<f32>(rgb, 1.0);
     }
   `;
 
@@ -158,7 +214,29 @@ class WebGPURenderer {
     });
 
     let fragShaderSource = WebGPURenderer.FRAG_SHADER_VF;
-    if (this.#sourceType == "VideoFrame" || this.#sourceType == "Picture") {
+    if (this.#sourceType == "VideoFrame") {
+      //fragShaderSource = WebGPURenderer.FRAG_SHADER_YUV;
+      fragShaderSource = WebGPURenderer.FRAG_SHADER_VF;
+      this.#pipeline = this.#device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+          module: this.#device.createShaderModule({ code: WebGPURenderer.VERTEX_SHADER }),
+          entryPoint: "vert_main"
+        },
+        fragment: {
+          module: this.#device.createShaderModule({ code: fragShaderSource }),
+          entryPoint: "frag_main",
+          targets: [
+            { 
+              format: this.#format,
+            }
+          ]
+        },
+        primitive: {
+          topology: "triangle-list"
+        }
+      });
+    } else if (this.#sourceType == "Picture") {
       fragShaderSource = WebGPURenderer.FRAG_SHADER_VF;
       this.#pipeline = this.#device.createRenderPipeline({
         layout: "auto",
@@ -196,6 +274,35 @@ class WebGPURenderer {
 
     // Default sampler configuration is nearset + clamp.
     this.#sampler = this.#device.createSampler({});
+    this.#ySampler = this.#device.createSampler(
+      {
+        addressModeU: "clamp-to-edge",
+        addressModeV: "clamp-to-edge",
+        magFilter: "linear",
+        minFilter: "linear",
+        mipmapFilter: "linear",
+      }
+    );
+
+    this.#uSampler = this.#device.createSampler(
+      {
+        addressModeU: "clamp-to-edge",
+        addressModeV: "clamp-to-edge",
+        magFilter: "linear",
+        minFilter: "linear",
+        mipmapFilter: "linear",
+      }
+    );
+
+    this.#vSampler = this.#device.createSampler(
+      {
+        addressModeU: "clamp-to-edge",
+        addressModeV: "clamp-to-edge",
+        magFilter: "linear",
+        minFilter: "linear",
+        mipmapFilter: "linear",
+      }
+    );
 
     if (this.#drawMultipleTextures) {
       this.#wmPipeline = this.#device.createRenderPipeline({
@@ -304,6 +411,7 @@ class WebGPURenderer {
   handleSource(workerId, source) {
     if (this.#sourceType == "VideoFrame") {
       this.cacheFrame(workerId, source);
+      // this.#cacheTextureGroup(workerId, source);
     } else if (this.#sourceType == "Picture") {
       this.cacheFrame(workerId, source);
     } else if (this.#sourceType == "ColorChunk") {
@@ -355,6 +463,7 @@ class WebGPURenderer {
       this.#drawColorChunk();
     } else if (this.#sourceType == "VideoFrame") {
       this.#drawVideoFrame();
+      // this.#drawVideoFrameYUVBuffers();
     } else if (this.#sourceType == "Picture") {
       this.#drawPicture();
     }
@@ -538,6 +647,58 @@ class WebGPURenderer {
     }
   }
 
+  #drawVideoFrameYUVBuffers() {
+    if (!this.#device) return;
+    let numberOfStream = this.#viewport.streamsCounter;
+    if (numberOfStream != this.#workerTextureMap.size) return;
+
+    const commandEncoder = this.#device.createCommandEncoder();
+    const textureView = this.#ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
+    };
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(this.#pipeline);
+    let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
+    let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
+    let colRow = this.#viewport.colRow;
+
+    for (let i = 0; i < numberOfStream; ++i) {
+      let uniformBindGroup = null;
+      let buffers = this.#workerTextureMap.get(i);
+      if (!buffers) continue;
+      const textureGroup = this.#createYUVPlanesTextures(vpGrideStrideX, vpGrideStrideY, buffers);
+
+      uniformBindGroup = this.#device.createBindGroup({
+        layout: this.#pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.#ySampler },
+          { binding: 1, resource: this.#uSampler },
+          { binding: 2, resource: this.#vSampler },
+          { binding: 3, resource: textureGroup.yTex.createView() },
+          { binding: 4, resource: textureGroup.uTex.createView() },
+          { binding: 5, resource: textureGroup.vTex.createView() },
+        ],
+      });
+
+      if (!uniformBindGroup) continue;
+      passEncoder.setBindGroup(0, uniformBindGroup);
+      const vpX = vpGrideStrideX * (i % colRow);
+      const vpY = vpGrideStrideY * Math.floor(i / colRow);
+      passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
+      passEncoder.draw(6, 1, 0, i);
+    }
+    passEncoder.end();
+    this.#device.queue.submit([commandEncoder.finish()]);
+  }
+
   #drawVideoFrameWithMultipleTimesSubmit() {
     let numberOfStream = this.#viewport.streamsCounter;
     if (!this.#device) return;
@@ -709,7 +870,7 @@ class WebGPURenderer {
     this.#device.queue.writeTexture(
       { aspect: "all", texture: uTexture },
       buffers.uPlane,
-      { bytesPerRow: width / 2 },
+      { offset: 0, bytesPerRow: width / 2 },
       { width: width / 2, height: height / 2 },
     );
 

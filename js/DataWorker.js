@@ -252,3 +252,14 @@ async function handlePicBuffer(cmd, workerId) {
         drPort.postMessage({ cmd: cmd, workerId: workerId, source: buffer }, [buffer]);
     }
 }
+
+
+// blocking code
+
+// 1. if draw VideoFrame by splitting YUV buffers via WebGPU, open this code
+// if (config.renderType == "WebGPU") {
+//     let yuvBuffers = e.data.source;
+//     drPort.postMessage({ cmd: e.data.cmd, workerId: workerId, source: e.data.source }, [ yuvBuffers.yPlane.buffer, yuvBuffers.uPlane.buffer, yuvBuffers.vPlane.buffer ]);
+// } else {
+//     drPort.postMessage({ cmd: e.data.cmd, workerId: workerId, source: e.data.source }, [e.data.source]);
+// }

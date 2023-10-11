@@ -426,6 +426,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
         workerMgr.workersStart(startInfo);
       }
 
+      document.getElementById('inputVideo').style.display = "none";
     } catch (e) {
       addToEventLog(e.name + ": " + e.message, 'fatal');
     }
