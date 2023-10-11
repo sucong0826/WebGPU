@@ -488,7 +488,7 @@ class WebGPURenderer {
       colorAttachments: [
         {
           view: textureView,
-          loadOp: "load",
+          loadOp: "clear",
           storeOp: "store",
         },
       ],
