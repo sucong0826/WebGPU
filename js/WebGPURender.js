@@ -470,6 +470,14 @@ class WebGPURenderer {
   }
 
   #drawColorChunk() {
+    if (this.#submitTimes === 1) {
+      this.#drawColorChunkWithOneTimeSubmit();
+    } else {
+      this.#drawColorChunkWithMultipleTimesSubmit();
+    }
+  }
+
+  #drawColorChunkWithOneTimeSubmit() {
     if (!this.#device) return;
     let numberOfStream = this.#viewport.streamsCounter;
     if (numberOfStream != this.#workerTextureMap.size) return;
@@ -515,6 +523,65 @@ class WebGPURenderer {
       passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
       passEncoder.draw(6, 1, 0, i);
     }
+    passEncoder.end();
+    this.#device.queue.submit([commandEncoder.finish()]);
+  }
+
+  #drawColorChunkWithMultipleTimesSubmit() {
+    let numberOfStream = this.#viewport.streamsCounter;
+    if (!this.#device) return;
+    if (!this.#sourceType || this.#sourceType == "") return;
+    if (numberOfStream != this.#workerTextureMap.size) return;
+
+    let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
+    let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
+    let colRow = this.#viewport.colRow;
+
+    for (let i = 0; i < numberOfStream; ++i) {
+      const vpX = vpGrideStrideX * (i % colRow);
+      const vpY = vpGrideStrideY * Math.floor(i / colRow);
+      this.#drawColorChunkByIndex(i, vpX, vpY, vpGrideStrideX, vpGrideStrideY);
+    }
+  }
+
+  #drawColorChunkByIndex(index, x, y, w, h) {
+    const commandEncoder = this.#device.createCommandEncoder();
+    const textureView = this.#ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: [1.0, 0.0, 0.0, 1.0],
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
+    };
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(this.#colorChunkPipeline);
+
+    let uniformBindGroup = null;
+    if (this.#sourceType == "VideoFrame" || this.#sourceType == "ColorChunk" || this.#sourceType == "Picture") {
+      let buffers = this.#workerTextureMap.get(index);
+      if (!buffers) return;
+
+      const textureGroup = this.#createYUVPlanesTextures(w, h, buffers);
+      uniformBindGroup = this.#device.createBindGroup({
+        layout: this.#colorChunkPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.#sampler },
+          { binding: 1, resource: textureGroup.yTex.createView() },
+          { binding: 2, resource: textureGroup.uTex.createView() },
+          { binding: 3, resource: textureGroup.vTex.createView() },
+        ],
+      });
+    }
+
+    if (!uniformBindGroup) return;
+    passEncoder.setBindGroup(0, uniformBindGroup);
+    passEncoder.setViewport(x, y, w, h, 0, 1);
+    passEncoder.draw(6, 1, 0, 0);
     passEncoder.end();
     this.#device.queue.submit([commandEncoder.finish()]);
   }
