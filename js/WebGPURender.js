@@ -518,6 +518,58 @@ class WebGPURenderer {
     passEncoder.end();
     this.#device.queue.submit([commandEncoder.finish()]);
   }
+  
+  #drawVideoFrameYUVBuffers() {
+    if (!this.#device) return;
+    let numberOfStream = this.#viewport.streamsCounter;
+    if (numberOfStream != this.#workerTextureMap.size) return;
+
+    const commandEncoder = this.#device.createCommandEncoder();
+    const textureView = this.#ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
+    };
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(this.#pipeline);
+    let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
+    let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
+    let colRow = this.#viewport.colRow;
+
+    for (let i = 0; i < numberOfStream; ++i) {
+      let uniformBindGroup = null;
+      let buffers = this.#workerTextureMap.get(i);
+      if (!buffers) continue;
+      const textureGroup = this.#createYUVPlanesTextures(vpGrideStrideX, vpGrideStrideY, buffers);
+
+      uniformBindGroup = this.#device.createBindGroup({
+        layout: this.#pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.#ySampler },
+          { binding: 1, resource: this.#uSampler },
+          { binding: 2, resource: this.#vSampler },
+          { binding: 3, resource: textureGroup.yTex.createView() },
+          { binding: 4, resource: textureGroup.uTex.createView() },
+          { binding: 5, resource: textureGroup.vTex.createView() },
+        ],
+      });
+
+      if (!uniformBindGroup) continue;
+      passEncoder.setBindGroup(0, uniformBindGroup);
+      const vpX = vpGrideStrideX * (i % colRow);
+      const vpY = vpGrideStrideY * Math.floor(i / colRow);
+      passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
+      passEncoder.draw(6, 1, 0, i);
+    }
+    passEncoder.end();
+    this.#device.queue.submit([commandEncoder.finish()]);
+  }
 
   #drawVideoFrameWithOneTimeSubmit() {
     let numberOfStream = this.#viewport.streamsCounter;
@@ -645,58 +697,6 @@ class WebGPURenderer {
     } else {
       this.#device.queue.submit([commandEncoder.finish()]);
     }
-  }
-
-  #drawVideoFrameYUVBuffers() {
-    if (!this.#device) return;
-    let numberOfStream = this.#viewport.streamsCounter;
-    if (numberOfStream != this.#workerTextureMap.size) return;
-
-    const commandEncoder = this.#device.createCommandEncoder();
-    const textureView = this.#ctx.getCurrentTexture().createView();
-    const renderPassDescriptor = {
-      colorAttachments: [
-        {
-          view: textureView,
-          loadOp: "clear",
-          storeOp: "store",
-        },
-      ],
-    };
-
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(this.#pipeline);
-    let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
-    let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
-    let colRow = this.#viewport.colRow;
-
-    for (let i = 0; i < numberOfStream; ++i) {
-      let uniformBindGroup = null;
-      let buffers = this.#workerTextureMap.get(i);
-      if (!buffers) continue;
-      const textureGroup = this.#createYUVPlanesTextures(vpGrideStrideX, vpGrideStrideY, buffers);
-
-      uniformBindGroup = this.#device.createBindGroup({
-        layout: this.#pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: this.#ySampler },
-          { binding: 1, resource: this.#uSampler },
-          { binding: 2, resource: this.#vSampler },
-          { binding: 3, resource: textureGroup.yTex.createView() },
-          { binding: 4, resource: textureGroup.uTex.createView() },
-          { binding: 5, resource: textureGroup.vTex.createView() },
-        ],
-      });
-
-      if (!uniformBindGroup) continue;
-      passEncoder.setBindGroup(0, uniformBindGroup);
-      const vpX = vpGrideStrideX * (i % colRow);
-      const vpY = vpGrideStrideY * Math.floor(i / colRow);
-      passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
-      passEncoder.draw(6, 1, 0, i);
-    }
-    passEncoder.end();
-    this.#device.queue.submit([commandEncoder.finish()]);
   }
 
   #drawVideoFrameWithMultipleTimesSubmit() {
