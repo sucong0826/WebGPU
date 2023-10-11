@@ -179,12 +179,25 @@
     <label for="lbl_st_colorchunk">ColorChunk(fixed resolution: 320x240)</label><br>
 </div>
 
-<video height="50%" id="inputVideo" autoplay muted></video>
+<div id="renderCmdSubmitOptions">
+    <p>How many times of submitting all render commands? (only works while WebGPU rendering)</p>
+    <input type="radio" id="submit_one" name="SubmitTimes" value="1" checked="checked">
+    <label for="lbl_submit_one_time">One Time</label><br>
+    <input type="radio" id="submit_multiple"  name="SubmitTimes" value="2">
+    <label for="lbl_submit_multiple_times">Multiple Times (depending on the number of streams)</label><br>
+</div>
+
 <br/>Local Video</br>
+<video height="50%" id="inputVideo" autoplay muted></video>
+
 <br/></br><video height="50%" id="outputVideo" hidden=true autoplay muted></video>
 <!-- <br/>Encoded (and Decoded) Video via WebCodecs</br> -->
 <br/></br>
-<br/>Canvas</br><input type="text" id="fps" readonly>
+<div>
+    <p>FPS</p>
+    <input type="text" id="fps" readonly>
+</div>
+<br/>Canvas</br>
 <br/></br><canvas id="renderCanvas" width="640" height="320"></canvas>
 <button id="connect">Start</button>
 <button id="stop">Stop</button>

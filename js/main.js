@@ -16,6 +16,7 @@ let workerMgr;
 let inputStream, outputStream;
 let videoSource;
 let streamsCounter = 1;
+let submitTimes = 1;
 
 const rate = document.querySelector('#rate');
 const connectButton = document.querySelector('#connect');
@@ -29,10 +30,11 @@ const sourceTypeButtons = document.querySelector('#renderSourceButtons');
 const videoSelect = document.querySelector('select#videoSource');
 const offscreen = document.querySelector("canvas").transferControlToOffscreen();
 const streamsCounterInput = document.getElementById('numberOfStreamsId');
+const submitTimeOptions = document.querySelector('#renderCmdSubmitOptions');
 const selectors = [videoSelect];
 const wmCheckBox = document.getElementById("wmCheckbox");
-wmCheckBox.checked = false;
 
+wmCheckBox.checked = false;
 connectButton.disabled = false;
 stopButton.disabled = true;
 
@@ -162,11 +164,22 @@ export function getSourceTypeValue(radio) {
   addToEventLog('Source type: ' + sourceType);
 }
 
+export function getSubmitTimeOptionsValue(radio) {
+  submitTimes = parseInt(radio.value);
+  let text = submitTimes == 1 ? 'one time' : 'multiple times';
+  addToEventLog('times of submitting render commands: ' + text);
+}
+
 function stop() {
   stopped = true;
   stopButton.disabled = true;
   connectButton.disabled = true;
   // streamWorker.postMessage({ type: "stop" });
+
+  const date = new Date();
+  const dateStr = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+  addToEventLog(`Rendering stops at ${dateStr}`);
+
   try {
     inputStream.cancel();
     addToEventLog('inputStream cancelled');
@@ -254,12 +267,19 @@ document.addEventListener('DOMContentLoaded', async function (event) {
     modeButtons.style.display = "none";
     rateInput.style.display = "none";
     keyInput.style.display = "none";
+    submitTimeOptions.style.display = "none";
     startMedia();
   }
 
   async function startMedia() {
     if (stopped) return;
     addToEventLog('startMedia called');
+    
+    // record date to log zone
+    const date = new Date();
+    const dateStr = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    addToEventLog(`Rendering starts from ${dateStr}`);
+
     try {
       // Collect the bitrate
       const rate = document.getElementById('rate').value;
@@ -278,6 +298,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
       const stCheckedRadio = sourceTypeButtons.querySelector('input[type="radio"]:checked');
       getSourceTypeValue(stCheckedRadio);
+
+      const submitTimesCheckedRadio = submitTimeOptions.querySelector('input[type="radio"]:checked');
+      getSubmitTimeOptionsValue(submitTimesCheckedRadio);
 
       if (sourceType == "VideoFrame") {
         // Create a MediaStreamTrackProcessor, which exposes frames from the track
@@ -319,7 +342,8 @@ document.addEventListener('DOMContentLoaded', async function (event) {
           ssrc: ssrc,
           isMultipleTextures: isMultipleTextures,
           renderType: renderType,
-          sourceType: sourceType
+          sourceType: sourceType,
+          submitTimes: submitTimes,
         };
 
         // const config = {

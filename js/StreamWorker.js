@@ -174,7 +174,7 @@ self.onmessage = function(e) {
         // emulate 30fps
         setInterval(() => {
           dispatchSource(e.data.config, e.data.viewport);
-        }, 33.3);
+        }, 30);
       }
       
     } catch (e) {

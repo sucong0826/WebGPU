@@ -6,6 +6,7 @@ class WebGPURenderer {
   #workerTextureMap = new Map();
   #watermarkTexture = null;
   #drawMultipleTextures = false;
+  #submitTimes = 1;
   #sourceType;
 
   // Promise for `#start()`, WebGPU setup is asynchronous.
@@ -138,8 +139,9 @@ class WebGPURenderer {
     this.#chooseConstraints(canvas, viewport, sourceType);
   }
 
-  prepare(drawMultipleTextures) {
+  prepare(drawMultipleTextures, submitTimes) {
     this.#drawMultipleTextures = drawMultipleTextures;
+    this.#submitTimes = submitTimes;
     this.#start();
   }
 
@@ -408,7 +410,7 @@ class WebGPURenderer {
     this.#device.queue.submit([commandEncoder.finish()]);
   }
 
-  #drawVideoFrame() {
+  #drawVideoFrameWithOneTimeSubmit() {
     let numberOfStream = this.#viewport.streamsCounter;
     if (!this.#device) return;
     if (!this.#sourceType || this.#sourceType == "") return;
@@ -536,6 +538,70 @@ class WebGPURenderer {
     }
   }
 
+  #drawVideoFrameWithMultipleTimesSubmit() {
+    let numberOfStream = this.#viewport.streamsCounter;
+    if (!this.#device) return;
+    if (!this.#sourceType || this.#sourceType == "") return;
+    if (numberOfStream != this.#workerFrameMap.size) return;
+
+    let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
+    let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
+    let colRow = this.#viewport.colRow;
+
+    for (let i = 0; i < numberOfStream; ++i) {
+      const vpX = vpGrideStrideX * (i % colRow);
+      const vpY = vpGrideStrideY * Math.floor(i / colRow);
+      this.#drawVideoFrameByIndex(i, vpX, vpY, vpGrideStrideX, vpGrideStrideY);
+    }
+  }
+
+  #drawVideoFrameByIndex(index, x, y, w, h) {
+    const commandEncoder = this.#device.createCommandEncoder();
+    const textureView = this.#ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: [1.0, 0.0, 0.0, 1.0],
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
+    };
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(this.#pipeline);
+
+    let uniformBindGroup = null;
+    if (this.#sourceType == "VideoFrame" || this.#sourceType == "ColorChunk" || this.#sourceType == "Picture") {
+      let frame = this.#workerFrameMap.get(index);
+      if (!frame) return;
+
+      uniformBindGroup = this.#device.createBindGroup({
+        layout: this.#pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: this.#sampler },
+          { binding: 1, resource: this.#device.importExternalTexture({ source: frame }) },
+        ],
+      });
+    }
+
+    if (!uniformBindGroup) return;
+    passEncoder.setBindGroup(0, uniformBindGroup);
+    passEncoder.setViewport(x, y, w, h, 0, 1);
+    passEncoder.draw(6, 1, 0, 0);
+    passEncoder.end();
+    this.#device.queue.submit([commandEncoder.finish()]);
+  }
+
+  #drawVideoFrame() {
+    if (this.#submitTimes === 1) {
+      this.#drawVideoFrameWithOneTimeSubmit();
+    } else {
+      this.#drawVideoFrameWithMultipleTimesSubmit();
+    }
+  }
+
   #drawPicture() {
     let numberOfStream = this.#viewport.streamsCounter;
     if (!this.#device) return;
@@ -587,7 +653,6 @@ class WebGPURenderer {
     passEncoder.end();
     this.#device.queue.submit([commandEncoder.finish()]);
   }
-
 
   #chooseConstraints(offscreen, viewport, sourceType) {
     let maxCol = Math.ceil(Math.sqrt(viewport.streamsCounter));

@@ -107,6 +107,7 @@ class WorkerMgr {
                 isMultipleTextures: startInfo.config.isMultipleTextures,
                 canvas: startInfo.offscreen,
                 viewport: startInfo.viewport,
+                submitTimes: startInfo.config.submitTimes,
             },
             [offscreenCanvas],
         );
