@@ -86,3 +86,40 @@ Every time you want to set up some different options, please reload the page eve
 
 ## Notice
 The result of WebGPU/WebGL/WebGL2 is a little different between Mac and Windows. We are going to publish a report of performance according to the result. 
+
+## How to test?
+In a Zoom meeting, two scenes are usually used, gallery video mode and speaker video mode. Normally, the speaker mode displays a list of small videos which have lower resolution and a large video with hight resolution, like 720p. The gallery mode display 25 videos at most one time with the same size of video area.
+
+However, in this sample, **you can only simulate the gallery video mode** like a Zoom meeting because it only supports drawing multiple videos with the same size. As for the speaker video mode, it will be supported as soon as possible.
+
+Next, here we illustrate how to simulate the gallery video mode.
+
+### Test Steps
+1. open the site https://webgpu-eight.vercel.app/
+2. allow the camera permission
+3. ignore the options like bitrate, keyframe interval, HW preference, Latency goal, etc
+4. fill in the streams that you want, like 25 streams
+5. select the render type, if focus on WebGPU, just select WebGPU, if want to compare the performance between WebGPU and WebGL, you can select WebGL to have another test
+6. select the source of rendering, it shoule be VideoFrame or ColorChunk
+7. select one-time or multiple-times
+    - if you select one-time, that means all rendering commands will be recorded together and sent all of them to GPU in one time
+    - if you select multiple-times, that means each video has its own rendering command cycle, rendering will be executed one by one
+8. click start button
+
+#### case 1: how to compare WebGL and WebGPU?
+1. streams: 25
+2. render type: WebGL(first) / WebGPU(second)
+3. source: ColorChunk (because a color chunk represents a YUV buffer, not a video frame)
+4. times of submit: One Time
+5. click start
+
+![case 1 - configuration](image-2.png)![case 1 - test result](image-3.png)
+We just care about the two aspects: **GPU process CPU usage** and **CPU usage**.
+
+#### case 2: how to compare the performance of times of submitting rendering commands?
+1. streams: 25
+2. render type: WebGPU
+3. source: ColorChunk (because a color chunk represents a YUV buffer, not a video frame)
+4. times of submit: One Time(first) / Multiple Times(second)
+5. click start
+![case 2 - configuration](image-4.png)
