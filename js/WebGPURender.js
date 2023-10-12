@@ -521,7 +521,7 @@ class WebGPURenderer {
       const vpX = vpGrideStrideX * (i % colRow);
       const vpY = vpGrideStrideY * Math.floor(i / colRow);
       passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
-      passEncoder.draw(6, 1, 0, i);
+      passEncoder.draw(6, 1, 0, 0);
     }
     passEncoder.end();
     this.#device.queue.submit([commandEncoder.finish()]);
@@ -684,7 +684,7 @@ class WebGPURenderer {
       const vpX = vpGrideStrideX * (i % colRow);
       const vpY = vpGrideStrideY * Math.floor(i / colRow);
       passEncoder.setViewport(vpX, vpY, vpGrideStrideX, vpGrideStrideY, 0, 1);
-      passEncoder.draw(6, 1, 0, i);
+      passEncoder.draw(6, 1, 0, 0);
     }
     passEncoder.end();
 
