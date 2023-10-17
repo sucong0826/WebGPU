@@ -187,6 +187,14 @@
     <label for="lbl_submit_multiple_times">Multiple Times (depending on the number of streams)</label><br>
 </div>
 
+<div id="textureActionOptions">
+    <p>How to upload content to a texture finally? (only works while WebGPU rendering)</p>
+    <input type="radio" id="actionWrite" name="textureAction" value="1" checked="checked">
+    <label for="lbl_action_write">WriteTexture(...)</label><br>
+    <input type="radio" id="actionCopy"  name="textureAction" value="2">
+    <label for="lbl_action_copy">CopyBufferTexture(...)</label><br>
+</div>
+
 <br/>Local Video</br>
 <video height="50%" id="inputVideo" autoplay muted></video>
 

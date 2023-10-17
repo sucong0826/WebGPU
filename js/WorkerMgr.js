@@ -108,6 +108,7 @@ class WorkerMgr {
                 canvas: startInfo.offscreen,
                 viewport: startInfo.viewport,
                 submitTimes: startInfo.config.submitTimes,
+                textureAction: startInfo.config.textureAction,
             },
             [offscreenCanvas],
         );

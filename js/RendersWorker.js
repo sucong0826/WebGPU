@@ -8,6 +8,7 @@ let globalViewport = null;
 let globalIsMultipleTextures = false;
 let globalSourceType = "";
 let globalSubmitTimes = 1;
+let globalTextureAction = 1;
 
 // Rendering. Drawing is limited to once per animation frame.
 let pendingFrame = null;
@@ -57,10 +58,13 @@ self.onmessage = function(e) {
             let submitTimes = e.data.submitTimes;
             globalSubmitTimes = submitTimes; 
 
+            let textureAction = e.data.textureAction;
+            globalTextureAction = textureAction;
+
             let renderType = e.data.renderType;
             if (renderType == "WebGPU") {
                 renderer = new WebGPURenderer(canvas, viewport, sourceType);
-                renderer.prepare(isMultipleTextures, submitTimes);
+                renderer.prepare(isMultipleTextures, submitTimes, textureAction);
             } else if (renderType == "WebGL") {
                 renderer = new WebGLRender(canvas, viewport, sourceType);
                 renderer.start();
