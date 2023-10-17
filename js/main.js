@@ -17,6 +17,7 @@ let inputStream, outputStream;
 let videoSource;
 let streamsCounter = 1;
 let submitTimes = 1;
+let textureActionType = 1;
 
 const rate = document.querySelector('#rate');
 const connectButton = document.querySelector('#connect');
@@ -31,6 +32,7 @@ const videoSelect = document.querySelector('select#videoSource');
 const offscreen = document.querySelector("canvas").transferControlToOffscreen();
 const streamsCounterInput = document.getElementById('numberOfStreamsId');
 const submitTimeOptions = document.querySelector('#renderCmdSubmitOptions');
+const textureActionOptions = document.querySelector('#textureActionOptions');
 const selectors = [videoSelect];
 const wmCheckBox = document.getElementById("wmCheckbox");
 
@@ -170,6 +172,12 @@ export function getSubmitTimeOptionsValue(radio) {
   addToEventLog('times of submitting render commands: ' + text);
 }
 
+export function getTextureActionOptionsValue(radio) {
+  textureActionType = parseInt(radio.value);
+  let text = textureActionType == 1 ? 'writeTexture(...)' : 'copyBufferToTexture(...)';
+  addToEventLog('action of uploading content to a texture: ' + text);
+}
+
 function stop() {
   stopped = true;
   stopButton.disabled = true;
@@ -268,6 +276,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
     rateInput.style.display = "none";
     keyInput.style.display = "none";
     submitTimeOptions.style.display = "none";
+    textureActionOptions.style.display = "none";
     startMedia();
   }
 
@@ -301,6 +310,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
       const submitTimesCheckedRadio = submitTimeOptions.querySelector('input[type="radio"]:checked');
       getSubmitTimeOptionsValue(submitTimesCheckedRadio);
+
+      const textureActionCheckedRadio = textureActionOptions.querySelector('input[type="radio"]:checked');
+      getTextureActionOptionsValue(textureActionCheckedRadio);
 
       if (sourceType == "VideoFrame") {
         // Create a MediaStreamTrackProcessor, which exposes frames from the track
@@ -344,6 +356,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
           renderType: renderType,
           sourceType: sourceType,
           submitTimes: submitTimes,
+          textureAction: textureActionType,
         };
 
         // const config = {
@@ -413,7 +426,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
           hardwareAcceleration: hw,
           isMultipleTextures: isMultipleTextures,
           renderType: renderType,
-          sourceType: sourceType
+          sourceType: sourceType,
+          submitTimes: submitTimes,
+          textureAction: textureActionType,
         };
 
         workerMgr = new WorkerMgr(streamsCounter);

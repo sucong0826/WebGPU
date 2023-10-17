@@ -1,3 +1,8 @@
+importScripts('./BufferManager.js');
+
+const TEX_ACTION_WRITE_TEXTURE = 1;
+const TEX_ACTION_COPY_BUF_TO_TEX = 2;
+
 class WebGPURenderer {
   #canvas = null;
   #ctx = null;
@@ -7,12 +12,14 @@ class WebGPURenderer {
   #watermarkTexture = null;
   #drawMultipleTextures = false;
   #submitTimes = 1;
+  #textureAction = 1;
   #sourceType;
 
   // Promise for `#start()`, WebGPU setup is asynchronous.
   #started = null;
 
   // WebGPU state shared between setup and drawing.
+  #bufferManager = null;
   #format = null;
   #device = null;
   #pipeline = null;
@@ -195,9 +202,10 @@ class WebGPURenderer {
     this.#chooseConstraints(canvas, viewport, sourceType);
   }
 
-  prepare(drawMultipleTextures, submitTimes) {
+  prepare(drawMultipleTextures, submitTimes, textureAction) {
     this.#drawMultipleTextures = drawMultipleTextures;
     this.#submitTimes = submitTimes;
+    this.#textureAction = textureAction;
     this.#start();
   }
 
@@ -205,6 +213,7 @@ class WebGPURenderer {
     const adapter = await navigator.gpu.requestAdapter();
     this.#device = await adapter.requestDevice();
     this.#format = navigator.gpu.getPreferredCanvasFormat();
+    this.#bufferManager = new BufferManager(this.#device);
 
     this.#ctx = this.#canvas.getContext("webgpu");
     this.#ctx.configure({
@@ -374,8 +383,26 @@ class WebGPURenderer {
   }
 
   #cacheTextureGroup(workerId, buffers) {
-    if (!this.#device) return;
-    this.#workerTextureMap.set(workerId, buffers);
+    if (!this.#device || !this.#bufferManager) return;
+    // this.#workerTextureMap.set(workerId, buffers);
+    
+    const width = this.#viewport.viewportGridStrideRow;
+    const height = this.#viewport.viewportGridStrideCol;
+    const commandEncoder = this.#device.createCommandEncoder();
+
+    // TODO: can reuse texGroup? 
+    const texGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, width, height, buffers, commandEncoder);
+    if (texGroup) {
+      if (this.#workerTextureMap.has(workerId)) {
+        let currentTexGroup = this.#workerTextureMap.get(workerId);
+        currentTexGroup.yTex.destroy();
+        currentTexGroup.uTex.destroy();
+        currentTexGroup.vTex.destroy();
+        this.#workerBufferMap.delete(workerId);
+      }
+
+      this.#workerTextureMap.set(workerId, texGroup);
+    }
   }
 
   cacheTexture(workerId, texture) {
@@ -488,11 +515,25 @@ class WebGPURenderer {
       colorAttachments: [
         {
           view: textureView,
+          clearValue: [1.0, 0.0, 0.0, 1.0],
           loadOp: "clear",
           storeOp: "store",
         },
       ],
     };
+
+    // let vpGrideStrideX = this.#viewport.viewportGridStrideRow;
+    // let vpGrideStrideY = this.#viewport.viewportGridStrideCol;
+
+    // let textureMap = new Map();
+    // for (let i = 0; i < numberOfStream; ++i) {
+    //   let buffers = this.#workerTextureMap.get(i);
+    //   if (!buffers) continue;
+    //   const textureGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, vpGrideStrideX, vpGrideStrideY, buffers, this.#commandEncoder);
+    //   textureMap.set(i, textureGroup);
+    // }
+
+    this.#device.pushErrorScope('validation');
 
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(this.#colorChunkPipeline);
@@ -502,10 +543,13 @@ class WebGPURenderer {
 
     for (let i = 0; i < numberOfStream; ++i) {
       let uniformBindGroup = null;
-      let buffers = this.#workerTextureMap.get(i);
-      if (!buffers) continue;
-      const textureGroup = this.#createYUVPlanesTextures(vpGrideStrideX, vpGrideStrideY, buffers);
+      // let buffers = this.#workerTextureMap.get(i);
+      // if (!buffers) continue;
 
+      let textureGroup = this.#workerTextureMap.get(i);
+      if (!textureGroup) continue;
+
+      // const textureGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, vpGrideStrideX, vpGrideStrideY, buffers, textureCommandEncoder);
       uniformBindGroup = this.#device.createBindGroup({
         layout: this.#colorChunkPipeline.getBindGroupLayout(0),
         entries: [
@@ -525,6 +569,12 @@ class WebGPURenderer {
     }
     passEncoder.end();
     this.#device.queue.submit([commandEncoder.finish()]);
+
+    this.#device.popErrorScope().then((error) => {
+      if (error) {
+        console.error(`An error occured while rendering: ${error}`);
+      }
+    });
   }
 
   #drawColorChunkWithMultipleTimesSubmit() {
@@ -566,7 +616,7 @@ class WebGPURenderer {
       let buffers = this.#workerTextureMap.get(index);
       if (!buffers) return;
 
-      const textureGroup = this.#createYUVPlanesTextures(w, h, buffers);
+      const textureGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, w, h, buffers, commandEncoder);
       uniformBindGroup = this.#device.createBindGroup({
         layout: this.#colorChunkPipeline.getBindGroupLayout(0),
         entries: [
@@ -613,7 +663,7 @@ class WebGPURenderer {
       let uniformBindGroup = null;
       let buffers = this.#workerTextureMap.get(i);
       if (!buffers) continue;
-      const textureGroup = this.#createYUVPlanesTextures(vpGrideStrideX, vpGrideStrideY, buffers);
+      const textureGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, vpGrideStrideX, vpGrideStrideY, buffers, commandEncoder);
 
       uniformBindGroup = this.#device.createBindGroup({
         layout: this.#pipeline.getBindGroupLayout(0),
@@ -908,7 +958,18 @@ class WebGPURenderer {
     this.#viewport.viewportHeight = viewportHeight;
   }
 
-  #createYUVPlanesTextures(width, height, buffers) {
+  #createYUVPlanesTexturesWith(textureAction, w = 0, h = 0, buffers = null, commandEncoder = null) {
+    if (textureAction === TEX_ACTION_WRITE_TEXTURE) {
+      return this.#createYUVPlanesTexturesByWriteTexture(w, h, buffers);
+    } else if (textureAction === TEX_ACTION_COPY_BUF_TO_TEX) {
+      return this.#createYUVPlanesTexturesByCopyBufToTex(w, h, buffers, commandEncoder);
+    } else {
+      console.warn(`${textureAction} is not supported yet!`);
+      return null;
+    }
+  }
+
+  #createYUVPlanesTexturesByWriteTexture(width, height, buffers) {
     let textures = {};
     const yTexture = this.#device.createTexture({
       size: { width: width, height: height },
@@ -959,6 +1020,149 @@ class WebGPURenderer {
     );
 
     textures.vTex = vTexture;
+    return textures;
+  }
+
+  #createYUVPlanesTexturesByCopyBufToTex(width, height, srcBuffers, commandEncoder) {
+    if (!this.#bufferManager) {
+      console.warn('buffer manager is not ready!');
+      return;
+    }
+
+    if (!this.#device) {
+      console.warn('GPUDevice is not ready!');
+      return;
+    }
+
+    if (srcBuffers === undefined || srcBuffers == null) {
+      console.warn('srcBuffers is invalid!');
+      return;
+    }
+
+    this.#device.pushErrorScope('validation');
+
+    // for y plane
+    const yPlaneTex = this.#device.createTexture({
+      size: { width: width, height: height },
+      format: "r8unorm",
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+
+    const usage = GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_SRC;
+    const yPlaneSize = width * height * Int8Array.BYTES_PER_ELEMENT;
+    // const yPlaneStagingBuffer = this.#bufferManager.acquireBuffer(usage, yPlaneSize, true, false);
+    const yPlaneStagingBuffer = this.#device.createBuffer({
+      size: yPlaneSize, 
+      usage: usage,
+      mappedAtCreation: true
+    });
+    const yPlaneArrayBuffer = yPlaneStagingBuffer.getMappedRange();
+    new Int8Array(yPlaneArrayBuffer).set(srcBuffers.yPlane, 0);
+    yPlaneStagingBuffer.unmap();
+
+    // for u plane
+    const uPlaneTex = this.#device.createTexture({
+      size: { width: width / 2, height: height / 2 },
+      format: "r8unorm",
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+
+    const uvPlaneSize = width / 2 * height / 2 * Int8Array.BYTES_PER_ELEMENT;
+    //const uPlaneStagingBuffer = this.#bufferManager.acquireBuffer(usage, uvPlaneSize, true, false);
+    const uPlaneStagingBuffer = this.#device.createBuffer({
+      size: uvPlaneSize, 
+      usage: usage,
+      mappedAtCreation: true
+    });
+    const uPlaneArrayBuffer = uPlaneStagingBuffer.getMappedRange();
+    new Int8Array(uPlaneArrayBuffer).set(srcBuffers.uPlane, 0);
+    uPlaneStagingBuffer.unmap();
+
+    // for v plane
+    const vPlaneTex = this.#device.createTexture({
+      size: { width: width / 2, height: height / 2 },
+      format: "r8unorm",
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+
+    // const vPlaneStagingBuffer = this.#bufferManager.acquireBuffer(usage, uvPlaneSize, true, false);
+    const vPlaneStagingBuffer = this.#device.createBuffer({
+      size: uvPlaneSize, 
+      usage: usage,
+      mappedAtCreation: true
+    });
+
+    const vPlaneArrayBuffer = vPlaneStagingBuffer.getMappedRange();
+    new Int8Array(vPlaneArrayBuffer).set(srcBuffers.vPlane, 0);
+    vPlaneStagingBuffer.unmap();
+
+    // next, copy all buffers to textures
+    commandEncoder.copyBufferToTexture(
+      {
+        // source
+        buffer: yPlaneStagingBuffer,
+        offset: 0,
+      },
+      {
+        // dest
+        texture: yPlaneTex
+      },
+      {
+        // copy size
+        width: width,
+        heigth: height, 
+        depthOrArrayLayers: 1,
+      }
+    );
+
+    commandEncoder.copyBufferToTexture(
+      {
+        // source
+        buffer: uPlaneStagingBuffer,
+        offset: 0,
+      },
+      {
+        // dest
+        texture: uPlaneTex
+      },
+      {
+        // copy size
+        width: width / 2,
+        heigth: height / 2, 
+        depthOrArrayLayers: 1,
+      }
+    );
+
+    commandEncoder.copyBufferToTexture(
+      {
+        // source
+        buffer: vPlaneStagingBuffer,
+        offset: 0,
+      },
+      {
+        // dest
+        texture: vPlaneTex
+      },
+      {
+        // copy size
+        width: width / 2,
+        heigth: height / 2, 
+        depthOrArrayLayers: 1,
+      }
+    );
+
+    this.#device.queue.submit([commandEncoder.finish()]);
+
+    this.#device.popErrorScope().then((error) => {
+      if (error) {
+        console.error(`An error occured while mapping: ${error}`);
+      }
+    });
+
+    let textures = {};
+    textures.yTex = yPlaneTex;
+    textures.uTex = uPlaneTex;
+    textures.vTex = vPlaneTex;
     return textures;
   }
 };
