@@ -1143,19 +1143,20 @@ class WebGPURenderer {
     const vPlaneStagingBuffer = this.#bufferManager.acquireBuffer(`${workerId}_V`, usage, uvPlaneBytesPerRow * height / 2, true, false);
 
     const yPlaneMappedArray = new Uint8Array(yPlaneStagingBuffer.getMappedRange());
-    for (let i = 0; i < height; ++i) {
-      yPlaneMappedArray.set(new Uint8Array(srcBuffers.yPlane, i * width * Uint8Array.BYTES_PER_ELEMENT, width * Uint8Array.BYTES_PER_ELEMENT), i * yPlaneBytesPerRow);
-    }
-    yPlaneStagingBuffer.unmap();
-
     const uPlaneMappedArray = new Uint8Array(uPlaneStagingBuffer.getMappedRange());
     const vPlaneMappedArray = new Uint8Array(vPlaneStagingBuffer.getMappedRange());
+    const yStride = width * Uint8Array.BYTES_PER_ELEMENT;
+    const uvStride = yStride / 2;
 
-    for (let i = 0; i < height / 2; ++i) {
-      const offset = i * uvPlaneBytesPerRow;
-      uPlaneMappedArray.set(new Uint8Array(srcBuffers.uPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT), offset);
-      vPlaneMappedArray.set(new Uint8Array(srcBuffers.vPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT), offset);
+    for (let i = 0; i < height; ++i) {
+      yPlaneMappedArray.set(new Uint8Array(srcBuffers.yPlane, i * yStride, yStride), i * yPlaneBytesPerRow);
+      if (i < height / 2) {
+        uPlaneMappedArray.set(new Uint8Array(srcBuffers.uPlane, i * uvStride, uvStride), i * uvPlaneBytesPerRow);
+        vPlaneMappedArray.set(new Uint8Array(srcBuffers.vPlane, i * uvStride, uvStride), i * uvPlaneBytesPerRow);
+      }
     }
+
+    yPlaneStagingBuffer.unmap();
     uPlaneStagingBuffer.unmap();
     vPlaneStagingBuffer.unmap();
 
