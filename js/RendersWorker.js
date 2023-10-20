@@ -80,6 +80,8 @@ self.onmessage = function(e) {
                 }
             }
         }
+    } else if (cmd == 'stop') {
+        renderer.stop();
     }
 }
 

@@ -184,6 +184,10 @@ function stop() {
   connectButton.disabled = true;
   // streamWorker.postMessage({ type: "stop" });
 
+  if (workerMgr) {
+    workerMgr.workersStop();
+  }
+
   const date = new Date();
   const dateStr = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
   addToEventLog(`Rendering stops at ${dateStr}`);

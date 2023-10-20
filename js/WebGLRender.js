@@ -89,6 +89,10 @@ class WebGLRender {
         this.#gl.vertexAttribPointer(this.#positionAttributeLocation, 2, this.#gl.FLOAT, false, 0, 0);
     }
 
+    stop() {
+        console.log('WebGLRender stops');
+    }
+
     cacheFrame(workerId, frame) {
         if (!this.#workerTexMap.has(workerId)) {
             let tex = this.#createTexture(this.#gl, frame);

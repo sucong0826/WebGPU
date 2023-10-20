@@ -99,6 +99,10 @@ class WebGPUDawnRenderProxy {
         Module.ccall("StartRendering", "null", ['number', 'number'], [this.#canvas.width, this.#canvas.height]);
     }
 
+    stop() {
+        console.log('WebGPURender-Dawn stops');
+    }
+
     /**
      * Handle the coming source, should be VideoFrame or YUV buffers.
      * @param {*} workerId the id of a data worker, means who dispatches this source

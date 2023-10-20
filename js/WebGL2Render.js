@@ -95,6 +95,10 @@ class WebGL2Render {
         }
     }
 
+    stop() {
+        console.log('WebGL2Render stops');
+    }
+
     cacheBuffer(workerId, buffer) {
         if (!this.#workerBufferMap.has(workerId)) {
             this.#workerBufferMap.set(workerId, frame);

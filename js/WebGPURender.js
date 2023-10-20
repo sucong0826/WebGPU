@@ -20,6 +20,7 @@ class WebGPURenderer {
 
   // WebGPU state shared between setup and drawing.
   #bufferManager = null;
+  #globalCommandEncoder = null;
   #format = null;
   #device = null;
   #pipeline = null;
@@ -384,6 +385,21 @@ class WebGPURenderer {
     }
   }
 
+  stop() {
+    console.log('WebGPURender stops');
+    for (const [key, val] of this.#workerFrameMap) {
+      val.close();
+    }
+    this.#workerFrameMap.clear();
+
+    for (const [key, val] of this.#workerTextureMap) {
+      val.yTex.destroy();
+      val.uTex.destroy();
+      val.vTex.destroy();
+    }
+    this.#workerTextureMap.clear();
+  }
+
   cacheFrame(workerId, frame) {
     if (!this.#workerFrameMap.has(workerId)) {
       this.#workerFrameMap.set(workerId, frame);
@@ -400,7 +416,8 @@ class WebGPURenderer {
     
     const width = this.#viewport.viewportGridStrideRow;
     const height = this.#viewport.viewportGridStrideCol;
-    const commandEncoder = this.#device.createCommandEncoder();
+    // const commandEncoder = this.#device.createCommandEncoder();
+    const commandEncoder = this.#acquireGlobalCommandEncoder();
 
     let texGroup = null;
     if (this.#workerTextureMap.has(workerId)) {
@@ -525,7 +542,8 @@ class WebGPURenderer {
     let numberOfStream = this.#viewport.streamsCounter;
     if (numberOfStream != this.#workerTextureMap.size) return;
 
-    const commandEncoder = this.#device.createCommandEncoder();
+    // const commandEncoder = this.#device.createCommandEncoder();
+    const commandEncoder = this.#acquireGlobalCommandEncoder();
     const textureView = this.#ctx.getCurrentTexture().createView();
     const renderPassDescriptor = {
       colorAttachments: [
@@ -599,7 +617,8 @@ class WebGPURenderer {
     //   512,
     // );
 
-    this.#device.queue.submit([commandEncoder.finish()]);
+    // this.#device.queue.submit([commandEncoder.finish()]);
+    this.#submit();
 
     // await outputStagingBuffer.mapAsync(GPUMapMode.READ, 0, 512 * vpGrideStrideY);
     // const copyArrayBuffer = outputStagingBuffer.getMappedRange(0, 512 * vpGrideStrideY);
@@ -1123,18 +1142,19 @@ class WebGPURenderer {
     const uPlaneStagingBuffer = this.#bufferManager.acquireBuffer(`${workerId}_U`, usage, uvPlaneBytesPerRow * height / 2, true, false);
     const vPlaneStagingBuffer = this.#bufferManager.acquireBuffer(`${workerId}_V`, usage, uvPlaneBytesPerRow * height / 2, true, false);
 
+    const yPlaneMappedArray = new Uint8Array(yPlaneStagingBuffer.getMappedRange());
     for (let i = 0; i < height; ++i) {
-      const arrayBufferEntry = yPlaneStagingBuffer.getMappedRange(i * yPlaneBytesPerRow, width);
-      new Uint8Array(arrayBufferEntry).set(new Uint8Array(srcBuffers.yPlane, i * width * Uint8Array.BYTES_PER_ELEMENT, width * Uint8Array.BYTES_PER_ELEMENT));
+      yPlaneMappedArray.set(new Uint8Array(srcBuffers.yPlane, i * width * Uint8Array.BYTES_PER_ELEMENT, width * Uint8Array.BYTES_PER_ELEMENT), i * yPlaneBytesPerRow);
     }
     yPlaneStagingBuffer.unmap();
 
-    for (let i = 0; i < height / 2; ++i) {
-      const uBufferEntry = uPlaneStagingBuffer.getMappedRange(i * uvPlaneBytesPerRow, width / 2);
-      new Uint8Array(uBufferEntry).set(new Uint8Array(srcBuffers.uPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT));
+    const uPlaneMappedArray = new Uint8Array(uPlaneStagingBuffer.getMappedRange());
+    const vPlaneMappedArray = new Uint8Array(vPlaneStagingBuffer.getMappedRange());
 
-      const vBufferEntry = vPlaneStagingBuffer.getMappedRange(i * uvPlaneBytesPerRow, width / 2);
-      new Uint8Array(vBufferEntry).set(new Uint8Array(srcBuffers.vPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT));
+    for (let i = 0; i < height / 2; ++i) {
+      const offset = i * uvPlaneBytesPerRow;
+      uPlaneMappedArray.set(new Uint8Array(srcBuffers.uPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT), offset);
+      vPlaneMappedArray.set(new Uint8Array(srcBuffers.vPlane, i * width / 2 * Uint8Array.BYTES_PER_ELEMENT, width / 2 * Uint8Array.BYTES_PER_ELEMENT), offset);
     }
     uPlaneStagingBuffer.unmap();
     vPlaneStagingBuffer.unmap();
@@ -1189,10 +1209,9 @@ class WebGPURenderer {
     // commandEncoder.clearBuffer(uPlaneStagingBuffer);
     // commandEncoder.clearBuffer(vPlaneStagingBuffer);
 
-    this.#device.queue.submit([commandEncoder.finish()]);
+    // this.#device.queue.submit([commandEncoder.finish()]);
 
     // TODO: this code can output the logs or data from shaders
-
     // const uvPlaneBufOutputStagingBuffer = this.#device.createBuffer({
     //   size: uvPlaneBytesPerRow * height / 2,
     //   usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
@@ -1223,6 +1242,8 @@ class WebGPURenderer {
     //     depthOrArrayLayers: 1
     //   }
     // );
+
+    // this.#device.queue.submit([commandEncoder.finish()]);
 
     // uvPlaneBufOutputStagingBuffer.mapAsync(GPUMapMode.READ, 0, uvPlaneBytesPerRow * height / 2).then((buffer) => {
     //   // console.log(`yPlaneBuffer is ${buffer}`);
@@ -1257,5 +1278,26 @@ class WebGPURenderer {
 
   #align(n, alignment) {
     return Math.ceil(n / alignment) * alignment;
+  }
+
+  #acquireGlobalCommandEncoder() {
+    if (!this.#device) {
+      console.error('GPUDevice is not ready! No avaliable command encoder.');
+      return null;
+    }
+
+    if (!this.#globalCommandEncoder) {
+      this.#globalCommandEncoder = this.#device.createCommandEncoder();
+    }
+
+    return this.#globalCommandEncoder;
+  }
+
+  #submit() {
+    if (this.#globalCommandEncoder) {
+      this.#device.queue.submit([this.#globalCommandEncoder.finish()]);
+    }
+
+    this.#globalCommandEncoder = null;
   }
 };

@@ -114,6 +114,12 @@ class WorkerMgr {
         );
     }
 
+    workersStop() {
+        this.#renderWorker.postMessage({
+            cmd: 'stop'
+        });
+    }
+
     dispatchMessage(msg) {
         let dataWorker = this.#dataWorkers.get(msg.workerId);
         if (dataWorker) {

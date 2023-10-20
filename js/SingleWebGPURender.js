@@ -105,6 +105,10 @@ class SingleWebGPURenderer {
     this.#sampler = this.#device.createSampler({});
   }
 
+  stop() {
+    console.log('WebGPURender stops');
+  }
+
   createTextureOnGPU(workerId, data) {
     if (!this.#device) {
       console.error("GPUDevice is not ready!");
