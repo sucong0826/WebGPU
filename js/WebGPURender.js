@@ -572,7 +572,7 @@ class WebGPURenderer {
     // let buffers = this.#workerTextureMap.get(0);
     // const textureGroup = this.#createYUVPlanesTexturesWith(this.#textureAction, vpGrideStrideX, vpGrideStrideY, buffers, textureCommandEncoder);
 
-    this.#device.pushErrorScope('validation');
+    // this.#device.pushErrorScope('validation');
 
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(this.#colorChunkPipeline);
@@ -626,11 +626,11 @@ class WebGPURenderer {
     // outputStagingBuffer.unmap();
     // console.log(new Float32Array(data));
 
-    this.#device.popErrorScope().then((error) => {
-      if (error) {
-        console.error(`An error occured while rendering: ${error.message}`);
-      }
-    });
+    // this.#device.popErrorScope().then((error) => {
+    //   if (error) {
+    //     console.error(`An error occured while rendering: ${error.message}`);
+    //   }
+    // });
   }
 
   #drawColorChunkWithMultipleTimesSubmit() {
@@ -1100,7 +1100,7 @@ class WebGPURenderer {
       return;
     }
 
-    this.#device.pushErrorScope('validation');
+    // this.#device.pushErrorScope('validation');
 
     const yPlaneBytesPerRow = this.#align(Uint8Array.BYTES_PER_ELEMENT * width, 256);
     const uvPlaneBytesPerRow = this.#align(Uint8Array.BYTES_PER_ELEMENT * width / 2, 256);
@@ -1264,11 +1264,11 @@ class WebGPURenderer {
     //   console.log(`yPlaneTexture is ${new Uint8Array(data)}`);
     // });
 
-    this.#device.popErrorScope().then((error) => {
-      if (error) {
-        console.error(`An error occured while mapping: ${error.message}`);
-      }
-    });
+    // this.#device.popErrorScope().then((error) => {
+    //   if (error) {
+    //     console.error(`An error occured while mapping: ${error.message}`);
+    //   }
+    // });
 
     let textures = {};
     textures.yTex = yPlaneTex;
