@@ -22,6 +22,7 @@ let textureActionType = 1;
 const rate = document.querySelector('#rate');
 const connectButton = document.querySelector('#connect');
 const stopButton = document.querySelector('#stop');
+const getAIButton = document.querySelector('#getAdapterInfo');
 const codecButtons = document.querySelector('#codecButtons');
 const resButtons = document.querySelector('#resButtons');
 const modeButtons = document.querySelector('#modeButtons');
@@ -237,6 +238,25 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   stopButton.onclick = () => {
     addToEventLog('Stop button clicked.');
     stop();
+  }
+
+  getAIButton.onclick = async () => {
+    const adapterInfo = await getAdapterInfo();
+    addToEventLog(`${adapterInfo}`);
+  }
+
+  async function getAdapterInfo() {
+    if (!navigator.gpu) {
+      return 'WebGPU is not supported!';
+    }
+
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      return 'Cannot request an adapter!';
+    }
+
+    const adapterInfo = await adapter.requestAdapterInfo();
+    return `${adapterInfo.architecture},${adapterInfo.vendor}`;
   }
 
   // Add event listener to each radio button
