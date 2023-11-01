@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
     }
 
     const adapterInfo = await adapter.requestAdapterInfo();
-    return `${adapterInfo.architecture},${adapterInfo.vendor}`;
+    return `${adapterInfo}`;
   }
 
   // Add event listener to each radio button
