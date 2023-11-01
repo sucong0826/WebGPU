@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
   getAIButton.onclick = async () => {
     const adapterInfo = await getAdapterInfo();
-    addToEventLog(`arch:${adapterInfo.architecture} desc:${adapterInfo.description} dvc:${adapterInfo.device} vendor:${adapterInfo.vendor}`);
+    addToEventLog(`${adapterInfo}`);
   }
 
   async function getAdapterInfo() {
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
     }
 
     const adapterInfo = await adapter.requestAdapterInfo();
-    return `${adapterInfo}`;
+    return `arch:${adapterInfo.architecture} desc:${adapterInfo.description} dvc:${adapterInfo.device} vendor:${adapterInfo.vendor}`;
   }
 
   // Add event listener to each radio button
