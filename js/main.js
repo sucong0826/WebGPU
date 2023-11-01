@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
   getAIButton.onclick = async () => {
     const adapterInfo = await getAdapterInfo();
-    addToEventLog(`${adapterInfo}`);
+    addToEventLog(`arch:${adapterInfo.architecture} desc:${adapterInfo.description} dvc:${adapterInfo.device} vendor:${adapterInfo.vendor}`);
   }
 
   async function getAdapterInfo() {
